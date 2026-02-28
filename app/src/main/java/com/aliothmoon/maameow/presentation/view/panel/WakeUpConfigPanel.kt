@@ -18,11 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.aliothmoon.maameow.R
 import com.aliothmoon.maameow.data.model.WakeUpConfig
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
@@ -106,12 +104,12 @@ fun WakeUpConfigPanel(
                     value = config.accountName,
                     onValueChange = { onConfigChange(config.copy(accountName = it)) },
                     enabled = !isTaskActive,
-                    label = stringResource(id = R.string.maa_account_switch),
+                    label = "账号切换",
                     placeholder = "123****4567"
                 )
 
                 Text(
-                    text = stringResource(id = R.string.maa_account_switch_tip),
+                    text = "需要切换至的账号，留空以禁用。输入登录界面显示的内容，例如 123****4567；支持部分匹配。仅支持官服、B服，不支持登录账号。",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray,
                     modifier = Modifier
