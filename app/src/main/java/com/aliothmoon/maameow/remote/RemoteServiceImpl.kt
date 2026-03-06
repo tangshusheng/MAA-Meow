@@ -198,15 +198,10 @@ class RemoteServiceImpl : RemoteService.Stub() {
     }
 
     override fun setDisplayPower(on: Boolean) {
-        setDisplayPowerInternal(PrimaryDisplayManager.DISPLAY_ID, on)
+        setDisplayPowerInternal(on)
     }
 
-    private fun setDisplayPowerInternal(displayId: Int, on: Boolean): Boolean {
-
-        if (Build.VERSION.SDK_INT >= AndroidVersions.API_35_ANDROID_15) {
-            return ServiceManager.getDisplayManager().requestDisplayPower(displayId, on)
-        }
-
+    private fun setDisplayPowerInternal(on: Boolean): Boolean {
         var applyToMultiPhysicalDisplays =
             Build.VERSION.SDK_INT >= AndroidVersions.API_29_ANDROID_10
 
