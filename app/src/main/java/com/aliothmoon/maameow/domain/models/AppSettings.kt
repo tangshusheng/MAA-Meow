@@ -7,7 +7,7 @@ import com.aliothmoon.preferences.PrefSchema
 data class AppSettings(
     @PrefKey(default = "ACCESSIBILITY") val overlayMode: String = "ACCESSIBILITY",
 
-    @PrefKey(default = "FOREGROUND") val runMode: String = "FOREGROUND",
+    @PrefKey(default = "BACKGROUND") val runMode: String = "BACKGROUND",
 
     @PrefKey(default = "GITHUB") val updateSource: String = "GITHUB",
 
