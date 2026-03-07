@@ -918,8 +918,7 @@ private fun DormFilterNotStationedSection(
         }
         ExpandableTipContent(
             visible = tipExpanded,
-            tipText = "勾选则不会将艾丽妮等干员从训练室移除，但也会导致加工站干员不能进入宿舍。",
-            modifier = Modifier.padding(start = 28.dp)
+            tipText = "勾选则不会将艾丽妮等干员从训练室移除，但也会导致加工站干员不能进入宿舍。"
         )
     }
 }

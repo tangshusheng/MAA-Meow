@@ -97,8 +97,7 @@ fun ModeSpecificSettings(
                     CheckBoxWithLabel(
                         checked = config.onlyStartWithEliteTwo,
                         onCheckedChange = { onConfigChange(config.copy(onlyStartWithEliteTwo = it)) },
-                        label = "只凹「开局干员」直升精二，不进行作战",
-                        modifier = Modifier.padding(start = 24.dp)
+                        label = "只凹「开局干员」直升精二，不进行作战"
                     )
                 }
             }

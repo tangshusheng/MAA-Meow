@@ -72,8 +72,7 @@ fun CheckBoxWithExpandableTip(
         }
         ExpandableTipContent(
             visible = tipExpanded,
-            tipText = tipText,
-            modifier = Modifier.padding(start = 32.dp)
+            tipText = tipText
         )
     }
 }

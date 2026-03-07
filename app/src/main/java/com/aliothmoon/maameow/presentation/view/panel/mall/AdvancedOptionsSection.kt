@@ -54,8 +54,7 @@ fun AdvancedOptionsSection(config: MallConfig, onConfigChange: (MallConfig) -> U
             }
             ExpandableTipContent(
                 visible = forceShoppingTipExpanded,
-                tipText = "信用点即将溢出时，强制购买黑名单物品避免浪费",
-                modifier = Modifier.padding(start = 28.dp)
+                tipText = "信用点即将溢出时，强制购买黑名单物品避免浪费"
             )
         }
 
@@ -79,8 +78,7 @@ fun AdvancedOptionsSection(config: MallConfig, onConfigChange: (MallConfig) -> U
             }
             ExpandableTipContent(
                 visible = onlyDiscountTipExpanded,
-                tipText = "注意：可能会导致信用点数溢出！仍然会购买未打折的白名单物品！",
-                modifier = Modifier.padding(start = 28.dp)
+                tipText = "注意：可能会导致信用点数溢出！仍然会购买未打折的白名单物品！"
             )
         }
 
@@ -104,8 +102,7 @@ fun AdvancedOptionsSection(config: MallConfig, onConfigChange: (MallConfig) -> U
             }
             ExpandableTipContent(
                 visible = reserveCreditTipExpanded,
-                tipText = "低于 300 信用点也仍然会购买白名单物品！",
-                modifier = Modifier.padding(start = 28.dp)
+                tipText = "低于 300 信用点也仍然会购买白名单物品！"
             )
         }
     }

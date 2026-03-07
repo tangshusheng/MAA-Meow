@@ -208,8 +208,7 @@ private fun UseExpeditedSection(
         }
         ExpandableTipContent(
             visible = tipExpanded,
-            tipText = "此选项不会被保存，每次任务开始前需重新勾选",
-            modifier = Modifier.padding(start = 28.dp)
+            tipText = "此选项不会被保存，每次任务开始前需重新勾选"
         )
     }
 }
@@ -486,8 +485,7 @@ private fun NotChooseLevel1Section(
         }
         ExpandableTipContent(
             visible = tipExpanded,
-            tipText = "勾选时识别到1星词条时跳过该次招募，未勾选时将忽略1星词条",
-            modifier = Modifier.padding(start = 28.dp)
+            tipText = "勾选时识别到1星词条时跳过该次招募，未勾选时将忽略1星词条"
         )
     }
 }

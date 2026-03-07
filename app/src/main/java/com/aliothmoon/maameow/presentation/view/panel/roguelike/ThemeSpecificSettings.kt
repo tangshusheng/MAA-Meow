@@ -67,9 +67,7 @@ fun ThemeSpecificSettings(
                         value = config.firstFloorFoldartals,
                         onValueChange = { onConfigChange(config.copy(firstFloorFoldartals = it)) },
                         placeholder = "密文板名称",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 24.dp)
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
@@ -86,7 +84,7 @@ fun ThemeSpecificSettings(
                 )
 
                 AnimatedVisibility(visible = config.newSquad2StartingFoldartal) {
-                    Column(modifier = Modifier.padding(start = 24.dp)) {
+                    Column {
                         ITextField(
                             value = config.newSquad2StartingFoldartals,
                             onValueChange = { onConfigChange(config.copy(newSquad2StartingFoldartals = it)) },
@@ -116,9 +114,7 @@ fun ThemeSpecificSettings(
                     value = config.seed,
                     onValueChange = { onConfigChange(config.copy(seed = it)) },
                     placeholder = "格式: xxx,rogue_x,x",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 24.dp)
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }

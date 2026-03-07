@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.HorizontalDivider
@@ -52,27 +53,21 @@ fun AdvancedRoguelikeSettings(
 
         AnimatedVisibility(visible = config.investmentEnabled) {
             Column(
-                modifier = Modifier.padding(start = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("投资 N 个源石锭后停止任务", style = MaterialTheme.typography.bodySmall)
-                    ITextField(
-                        value = config.investCount.toString(),
-                        onValueChange = {
-                            onConfigChange(
-                                config.copy(
-                                    investCount = it.toIntOrNull() ?: 999
-                                )
+                ITextField(
+                    value = config.investCount.toString(),
+                    onValueChange = {
+                        onConfigChange(
+                            config.copy(
+                                investCount = it.toIntOrNull() ?: 999
                             )
-                        },
-                        placeholder = "999",
-                        modifier = Modifier.width(80.dp)
-                    )
-                }
+                        )
+                    },
+                    label = "投资 N 个源石锭后停止任务",
+                    placeholder = "999",
+                    modifier = Modifier.fillMaxWidth()
+                )
 
                 // WPF: Visibility="RoguelikeInvestmentEnabled AND RoguelikeMode != Collectible" (line 156)
                 if (config.mode != RoguelikeMode.Collectible) {
@@ -130,8 +125,7 @@ fun AdvancedRoguelikeSettings(
             }
             ExpandableTipContent(
                 visible = supportTipExpanded,
-                tipText = "需先填写「开局干员」",
-                modifier = Modifier.padding(start = 28.dp)
+                tipText = "需先填写「开局干员」"
             )
         }
 
@@ -140,32 +134,26 @@ fun AdvancedRoguelikeSettings(
             CheckBoxWithLabel(
                 checked = config.enableNonfriendSupport,
                 onCheckedChange = { onConfigChange(config.copy(enableNonfriendSupport = it)) },
-                label = "可以使用非好友助战",
-                modifier = Modifier.padding(start = 24.dp)
+                label = "可以使用非好友助战"
             )
         }
 
         HorizontalDivider(color = Color.LightGray, thickness = 0.5.dp)
 
         // 开局次数 - WPF: Maximum="99999" (line 142)
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text("开始探索 N 次后停止任务", style = MaterialTheme.typography.bodySmall)
-            ITextField(
-                value = config.startsCount.toString(),
-                onValueChange = {
-                    onConfigChange(
-                        config.copy(
-                            startsCount = it.toIntOrNull() ?: 99999
-                        )
+        ITextField(
+            value = config.startsCount.toString(),
+            onValueChange = {
+                onConfigChange(
+                    config.copy(
+                        startsCount = it.toIntOrNull() ?: 99999
                     )
-                },
-                placeholder = "99999",
-                modifier = Modifier.width(100.dp)
-            )
-        }
+                )
+            },
+            label = "开始探索 N 次后停止任务",
+            placeholder = "99999",
+            modifier = Modifier.fillMaxWidth()
+        )
 
         HorizontalDivider(color = Color.LightGray, thickness = 0.5.dp)
 

@@ -193,8 +193,7 @@ private fun BasicMallSettings(config: MallConfig, onConfigChange: (MallConfig) -
             }
             ExpandableTipContent(
                 visible = shoppingTipExpanded,
-                tipText = "自动使用信用点购买商店中的物品",
-                modifier = Modifier.padding(start = 28.dp)
+                tipText = "自动使用信用点购买商店中的物品"
             )
         }
 
@@ -216,9 +215,7 @@ private fun BasicMallSettings(config: MallConfig, onConfigChange: (MallConfig) -
             }
             ExpandableTipContent(
                 visible = creditFightTipExpanded,
-                tipText = "访问好友后借助战打一把 OF-1 赚 30 信用。\n关卡选择为 ｢当前/上次｣ 时此功能无效。\n别传 ｢火蓝之心｣ 关卡OF-1未解锁时请勿勾选。",
-
-                modifier = Modifier.padding(start = 28.dp)
+                tipText = "访问好友后借助战打一把 OF-1 赚 30 信用。\n关卡选择为 ｢当前/上次｣ 时此功能无效。\n别传 ｢火蓝之心｣ 关卡OF-1未解锁时请勿勾选。"
             )
         }
 

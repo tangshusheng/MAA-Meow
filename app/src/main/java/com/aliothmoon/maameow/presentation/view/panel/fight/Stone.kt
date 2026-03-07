@@ -164,8 +164,7 @@ private fun UseStoneSection(
         // 未保存设置的警告提示
         ExpandableTipContent(
             visible = tipExpanded && !config.allowUseStoneSave,
-            tipText = tipText,
-            modifier = Modifier.padding(start = 32.dp)
+            tipText = tipText
         )
     }
 }

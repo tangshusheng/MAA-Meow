@@ -70,8 +70,7 @@ fun AwardConfigPanel(
             }
             ExpandableTipContent(
                 visible = freeGachaTipExpanded,
-                tipText = "若不存在免费单抽，则不会抽取",
-                modifier = Modifier.padding(start = 28.dp)
+                tipText = "若不存在免费单抽，则不会抽取"
             )
         }
 
