@@ -1,6 +1,7 @@
 package com.aliothmoon.maameow.domain.service.update
 
 import com.aliothmoon.maameow.data.model.update.UpdateCheckResult
+import com.aliothmoon.maameow.data.model.update.UpdateChannel
 import com.aliothmoon.maameow.data.model.update.UpdateProcessState
 import com.aliothmoon.maameow.data.model.update.UpdateSource
 import kotlinx.coroutines.flow.StateFlow
@@ -42,12 +43,12 @@ class UpdateService(
     val appProcessState: StateFlow<UpdateProcessState>
         get() = appHandler.processState
 
-    suspend fun checkAppUpdate(cdk: String = ""): UpdateCheckResult {
-        return appHandler.checkUpdate(cdk)
+    suspend fun checkAppUpdate(cdk: String = "", channel: UpdateChannel = UpdateChannel.STABLE): UpdateCheckResult {
+        return appHandler.checkUpdate(cdk, channel)
     }
 
-    suspend fun confirmAndDownloadApp(source: UpdateSource, cdk: String): Result<Unit> {
-        return appHandler.confirmAndDownload(source, cdk)
+    suspend fun confirmAndDownloadApp(source: UpdateSource, cdk: String, version: String, channel: UpdateChannel = UpdateChannel.STABLE): Result<Unit> {
+        return appHandler.confirmAndDownload(source, cdk, version, channel)
     }
 
     fun resetAppProcess() {

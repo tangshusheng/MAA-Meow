@@ -46,6 +46,12 @@ object MaaApi {
     const val APP_GITHUB_RELEASES =
         "https://api.github.com/repos/$APP_GITHUB_OWNER/$APP_GITHUB_REPO/releases?per_page=1"
 
+    const val APP_GITHUB_RELEASES_BETA =
+        "https://api.github.com/repos/$APP_GITHUB_OWNER/$APP_GITHUB_REPO/releases?per_page=5"
+
+    fun appGitHubReleaseByTag(tag: String): String =
+        "https://api.github.com/repos/$APP_GITHUB_OWNER/$APP_GITHUB_REPO/releases/tags/$tag"
+
     // MirrorChyan App 更新源
     const val MIRROR_CHYAN_APP_RESOURCE = "https://mirrorchyan.com/api/resources/MAA-Meow/latest"
 

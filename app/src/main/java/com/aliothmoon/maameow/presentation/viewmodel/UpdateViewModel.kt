@@ -9,6 +9,7 @@ import com.aliothmoon.maameow.data.config.MaaPathConfig
 import com.aliothmoon.maameow.data.datasource.ResourceDownloader
 import com.aliothmoon.maameow.data.model.update.StartupUpdateResult
 import com.aliothmoon.maameow.data.model.update.UpdateCheckResult
+import com.aliothmoon.maameow.data.model.update.UpdateChannel
 import com.aliothmoon.maameow.data.model.update.UpdateInfo
 import com.aliothmoon.maameow.data.model.update.UpdateProcessState
 import com.aliothmoon.maameow.data.model.update.UpdateSource
@@ -20,6 +21,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okio.buffer
@@ -48,6 +52,8 @@ class UpdateViewModel(
 
     val mirrorChyanCdk: StateFlow<String> = appSettingsManager.mirrorChyanCdk
 
+    val updateChannel: StateFlow<UpdateChannel> = appSettingsManager.updateChannel
+
     // 检查状态
     private val _appChecking = MutableStateFlow(false)
     val appChecking: StateFlow<Boolean> = _appChecking.asStateFlow()
@@ -66,6 +72,11 @@ class UpdateViewModel(
         viewModelScope.launch {
             refreshResourceVersion()
         }
+        // 切换更新渠道时自动检查 App 更新
+        updateChannel
+            .drop(1)
+            .onEach { checkAppUpdate() }
+            .launchIn(viewModelScope)
     }
 
 
@@ -97,6 +108,13 @@ class UpdateViewModel(
     fun setMirrorChyanCdk(cdk: String) {
         viewModelScope.launch {
             appSettingsManager.setMirrorChyanCdk(cdk)
+        }
+    }
+
+
+    fun setUpdateChannel(channel: UpdateChannel) {
+        viewModelScope.launch {
+            appSettingsManager.setUpdateChannel(channel)
         }
     }
 
@@ -161,7 +179,10 @@ class UpdateViewModel(
 
             // 并行检查
             val appResultDeferred = async {
-                updateService.checkAppUpdate(mirrorChyanCdk.value)
+                updateService.checkAppUpdate(
+                    cdk = mirrorChyanCdk.value,
+                    channel = updateChannel.value
+                )
             }
             val resResult =
                 updateService.checkResourceUpdate(currentVersion, mirrorChyanCdk.value)
@@ -203,7 +224,9 @@ class UpdateViewModel(
         viewModelScope.launch {
             _appChecking.value = true
             Timber.i("检查 App 更新 (MirrorChyan)")
-            _appCheckResult.value = updateService.checkAppUpdate()
+            _appCheckResult.value = updateService.checkAppUpdate(
+                channel = updateChannel.value
+            )
             _appChecking.value = false
         }
     }
@@ -213,10 +236,13 @@ class UpdateViewModel(
     }
 
     fun confirmAppDownload() {
+        val version = (_appCheckResult.value as? UpdateCheckResult.Available)?.info?.version ?: return
         viewModelScope.launch {
             updateService.confirmAndDownloadApp(
                 source = updateSource.value,
-                cdk = mirrorChyanCdk.value
+                cdk = mirrorChyanCdk.value,
+                version = version,
+                channel = updateChannel.value
             )
         }
     }

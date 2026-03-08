@@ -11,7 +11,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
@@ -19,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -28,16 +32,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.aliothmoon.maameow.BuildConfig
+import com.aliothmoon.maameow.data.model.update.UpdateChannel
 import com.aliothmoon.maameow.domain.service.LogExportService
 import com.aliothmoon.maameow.domain.service.ResourceInitService
 import com.aliothmoon.maameow.domain.state.ResourceInitState
@@ -61,6 +69,7 @@ fun SettingsView(
     val debugMode by viewModel.debugMode.collectAsStateWithLifecycle()
     val autoCheckUpdate by viewModel.autoCheckUpdate.collectAsStateWithLifecycle()
     val skipShizukuCheck by viewModel.skipShizukuCheck.collectAsStateWithLifecycle()
+    val updateChannel by viewModel.updateChannel.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
 
     var showReInitConfirm by remember { mutableStateOf(false) }
@@ -163,6 +172,12 @@ fun SettingsView(
                         contentColor = color,
                         checked = autoCheckUpdate,
                         onCheckedChange = { viewModel.setAutoCheckUpdate(it) }
+                    )
+                    SettingsDivider(color)
+                    SettingChannelItem(
+                        contentColor = color,
+                        selectedChannel = updateChannel,
+                        onChannelSelected = { viewModel.setUpdateChannel(it) }
                     )
                 }
             }
@@ -301,7 +316,7 @@ private fun SettingClickItem(
             .padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
@@ -330,7 +345,7 @@ private fun SettingSwitchItem(
             .padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
@@ -377,4 +392,60 @@ private fun SettingsDivider(contentColor: Color) {
         modifier = Modifier.padding(vertical = 8.dp),
         color = contentColor.copy(alpha = 0.1f)
     )
+}
+
+@Composable
+private fun SettingChannelItem(
+    contentColor: Color,
+    selectedChannel: UpdateChannel,
+    onChannelSelected: (UpdateChannel) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = "更新渠道",
+                style = MaterialTheme.typography.bodyLarge,
+                color = contentColor
+            )
+            Text(
+                text = "选择接收稳定版或公测版更新",
+                style = MaterialTheme.typography.bodySmall,
+                color = contentColor.copy(alpha = 0.7f)
+            )
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            UpdateChannel.entries.forEach { channel ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .selectable(
+                            selected = channel == selectedChannel,
+                            onClick = { onChannelSelected(channel) },
+                            role = Role.RadioButton
+                        )
+                ) {
+                    RadioButton(
+                        selected = channel == selectedChannel,
+                        onClick = null
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = channel.displayName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = contentColor
+                    )
+                }
+            }
+        }
+    }
 }

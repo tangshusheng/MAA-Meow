@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
+import com.aliothmoon.maameow.data.model.update.UpdateChannel
 import com.aliothmoon.maameow.data.model.update.UpdateSource
 import com.aliothmoon.maameow.domain.models.AppSettings
 import com.aliothmoon.maameow.domain.models.AppSettingsSchema
@@ -189,6 +190,25 @@ class AppSettingsManager(private val context: Context) {
     suspend fun setCloseAppOnTaskEnd(enabled: Boolean) {
         with(AppSettingsSchema) {
             context.dataStore.edit { it[closeAppOnTaskEnd] = enabled.toString() }
+        }
+    }
+
+    // 更新渠道
+    val updateChannel: StateFlow<UpdateChannel> = settings
+        .map {
+            runCatching { UpdateChannel.valueOf(it.updateChannel) }
+                .getOrDefault(UpdateChannel.STABLE)
+        }
+        .distinctUntilChanged()
+        .stateIn(
+            scope, SharingStarted.Eagerly,
+            runCatching { UpdateChannel.valueOf(initialSettings.updateChannel) }
+                .getOrDefault(UpdateChannel.STABLE)
+        )
+
+    suspend fun setUpdateChannel(channel: UpdateChannel) {
+        with(AppSettingsSchema) {
+            context.dataStore.edit { it[updateChannel] = channel.name }
         }
     }
 }

@@ -3,6 +3,7 @@ package com.aliothmoon.maameow.presentation.viewmodel
 import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aliothmoon.maameow.data.model.update.UpdateChannel
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.utils.Misc
@@ -47,6 +48,15 @@ class SettingsViewModel(
     fun setSkipShizukuCheck(enabled: Boolean) {
         viewModelScope.launch {
             appSettingsManager.setSkipShizukuCheck(enabled)
+        }
+    }
+
+    val updateChannel: StateFlow<UpdateChannel> = appSettingsManager.updateChannel
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UpdateChannel.STABLE)
+
+    fun setUpdateChannel(channel: UpdateChannel) {
+        viewModelScope.launch {
+            appSettingsManager.setUpdateChannel(channel)
         }
     }
 }

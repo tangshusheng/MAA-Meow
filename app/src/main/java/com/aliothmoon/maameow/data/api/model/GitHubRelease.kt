@@ -9,6 +9,7 @@ data class GitHubRelease(
     val tagName: String,
     val name: String? = null,
     val body: String? = null,
+    val prerelease: Boolean = false,
     val assets: List<GitHubAsset> = emptyList(),
 )
 

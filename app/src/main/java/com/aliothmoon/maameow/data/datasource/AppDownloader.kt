@@ -22,8 +22,7 @@ import java.io.IOException
 import java.util.Locale
 
 class AppDownloader(
-    private val context: Context,
-    private val httpClient: HttpClientHelper
+    private val context: Context, private val httpClient: HttpClientHelper
 ) {
 
     companion object {
@@ -88,79 +87,25 @@ class AppDownloader(
         }
     }
 
-    /**
-     * 通过 GitHub Release API 检查更新
-     */
-    suspend fun checkVersionFromGitHub(): UpdateCheckResult {
-        return try {
-            val response = httpClient.get(MaaApi.APP_GITHUB_RELEASES)
-            if (!response.isSuccessful) {
-                return UpdateCheckResult.Error(
-                    UpdateError.UnknownError(
-                        "GitHub API 请求失败",
-                        response.code
-                    )
-                )
-            }
-
-            val release = runCatching {
-                val releases = json.decodeFromString<List<GitHubRelease>>(response.body.string())
-                releases.firstOrNull()
-            }.getOrElse { e ->
-                return UpdateCheckResult.Error(
-                    UpdateError.UnknownError(
-                        "解析响应失败: ${e.message}",
-                        -1
-                    )
-                )
-            } ?: return UpdateCheckResult.UpToDate(BuildConfig.VERSION_NAME)
-
-            val remoteVersion = release.tagName.removePrefix("v").removePrefix("V")
-            val currentVersion = BuildConfig.VERSION_NAME
-
-            if (compareVersions(currentVersion, remoteVersion) >= 0) {
-                return UpdateCheckResult.UpToDate(currentVersion)
-            }
-
-            // 查找 APK asset
-            val apkAsset = release.assets.firstOrNull { it.name.endsWith("universal.apk") }
-                ?: return UpdateCheckResult.Error(
-                    UpdateError.UnknownError(
-                        "Release 中未找到 APK 文件",
-                        -1
-                    )
-                )
-
-            UpdateCheckResult.Available(
-                UpdateInfo(
-                    version = remoteVersion,
-                    downloadUrl = apkAsset.browserDownloadUrl,
-                    releaseNote = release.body
-                )
-            )
-        } catch (e: Exception) {
-            Timber.e(e, "GitHub 检查更新失败")
-            UpdateCheckResult.Error(UpdateError.NetworkError(e.message ?: "网络错误"))
-        }
-    }
 
     /**
      * 通过 MirrorChyan API 检查更新
      */
-    suspend fun checkVersionFromMirrorChyan(cdk: String = ""): UpdateCheckResult {
+    suspend fun checkVersionFromMirrorChyan(
+        cdk: String = "", channel: String = "stable"
+    ): UpdateCheckResult {
         return try {
             val currentVersion = BuildConfig.VERSION_NAME
             val response = httpClient.get(
-                MaaApi.MIRROR_CHYAN_APP_RESOURCE,
-                query = buildMap {
+                MaaApi.MIRROR_CHYAN_APP_RESOURCE, query = buildMap {
                     put("current_version", currentVersion)
                     put("user_agent", "MAA-Meow")
                     put("os", "android")
+                    put("channel", channel)
                     if (cdk.isNotBlank()) {
                         put("cdk", cdk)
                     }
-                }
-            )
+                })
 
             if (response.code == 500) {
                 return UpdateCheckResult.Error(UpdateError.UnknownError("更新服务不可用", 500))
@@ -176,8 +121,7 @@ class AppDownloader(
 
             val data = body.data ?: return UpdateCheckResult.Error(
                 UpdateError.UnknownError(
-                    "数据为空",
-                    -1
+                    "数据为空", -1
                 )
             )
             val remoteVersion = data.versionName
@@ -189,8 +133,7 @@ class AppDownloader(
             val downloadUrl = if (cdk.isNotBlank()) {
                 data.url ?: return UpdateCheckResult.Error(
                     UpdateError.UnknownError(
-                        "下载链接为空",
-                        -1
+                        "下载链接为空", -1
                     )
                 )
             } else {
@@ -211,6 +154,45 @@ class AppDownloader(
     }
 
     /**
+     * 通过 GitHub Release API 按 tag 获取指定版本的下载链接
+     */
+    suspend fun getReleaseByTag(version: String): UpdateCheckResult {
+        return try {
+            val tag = if (version.startsWith("v", ignoreCase = true)) version else "v$version"
+            val response = httpClient.get(MaaApi.appGitHubReleaseByTag(tag))
+            if (!response.isSuccessful) {
+                return UpdateCheckResult.Error(
+                    UpdateError.UnknownError("GitHub API 请求失败", response.code)
+                )
+            }
+
+            val release = runCatching {
+                json.decodeFromString<GitHubRelease>(response.body.string())
+            }.getOrElse { e ->
+                return UpdateCheckResult.Error(
+                    UpdateError.UnknownError("解析响应失败: ${e.message}", -1)
+                )
+            }
+
+            val apkAsset = release.assets.firstOrNull { it.name.endsWith("universal.apk") }
+                ?: return UpdateCheckResult.Error(
+                    UpdateError.UnknownError("Release 中未找到 APK 文件", -1)
+                )
+
+            UpdateCheckResult.Available(
+                UpdateInfo(
+                    version = version,
+                    downloadUrl = apkAsset.browserDownloadUrl,
+                    releaseNote = release.body
+                )
+            )
+        } catch (e: Exception) {
+            Timber.e(e, "GitHub 获取 Release 失败: $version")
+            UpdateCheckResult.Error(UpdateError.NetworkError(e.message ?: "网络错误"))
+        }
+    }
+
+    /**
      * 查找已缓存的完整 APK（仅 .apk 后缀表示下载完成）
      */
     fun getCachedApk(version: String): File? {
@@ -223,21 +205,16 @@ class AppDownloader(
      */
     fun cleanOldApks(keepVersion: String) {
         val keepName = apkFileName(keepVersion)
-        context.cacheDir.listFiles()
-            ?.filter {
+        context.cacheDir.listFiles()?.filter {
                 it.name.startsWith("MaaMeow-") && (it.name.endsWith(".apk") || it.name.endsWith(
                     ".apk.dl"
                 ))
-            }
-            ?.filter { it.name != keepName }
-            ?.forEach { it.delete() }
+            }?.filter { it.name != keepName }?.forEach { it.delete() }
     }
 
 
     suspend fun downloadToTempFile(
-        url: String,
-        version: String,
-        onProgress: (ResourceDownloader.DownloadProgress) -> Unit
+        url: String, version: String, onProgress: (ResourceDownloader.DownloadProgress) -> Unit
     ): Result<File> {
         return try {
             val request = Request.Builder().url(url).build()
@@ -311,14 +288,11 @@ class AppDownloader(
     private fun formatSpeed(bytesPerSecond: Long): String {
         return when {
             bytesPerSecond >= 1024 * 1024 -> String.format(
-                Locale.US,
-                "%.1f MB/s",
-                bytesPerSecond / (1024.0 * 1024)
+                Locale.US, "%.1f MB/s", bytesPerSecond / (1024.0 * 1024)
             )
 
             bytesPerSecond >= 1024 -> String.format(
-                Locale.US,
-                "%.1f KB/s", bytesPerSecond / 1024.0
+                Locale.US, "%.1f KB/s", bytesPerSecond / 1024.0
             )
 
             else -> "$bytesPerSecond B/s"

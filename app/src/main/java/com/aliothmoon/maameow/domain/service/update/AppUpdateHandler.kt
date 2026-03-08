@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import com.aliothmoon.maameow.data.datasource.AppDownloader
 import com.aliothmoon.maameow.data.model.update.UpdateCheckResult
+import com.aliothmoon.maameow.data.model.update.UpdateChannel
 import com.aliothmoon.maameow.data.model.update.UpdateError
 import com.aliothmoon.maameow.data.model.update.UpdateInfo
 import com.aliothmoon.maameow.data.model.update.UpdateProcessState
@@ -24,19 +25,19 @@ class AppUpdateHandler(
     val processState: StateFlow<UpdateProcessState> = _processState.asStateFlow()
 
 
-    suspend fun checkUpdate(cdk: String = ""): UpdateCheckResult {
-        return downloader.checkVersionFromMirrorChyan(cdk)
+    suspend fun checkUpdate(cdk: String = "", channel: UpdateChannel = UpdateChannel.STABLE): UpdateCheckResult {
+        return downloader.checkVersionFromMirrorChyan(cdk, channel.value)
     }
 
     /**
      * 确认并下载 App 更新
      * 根据下载源解析下载链接，MirrorChyan 需要 CDK 验证
      */
-    suspend fun confirmAndDownload(source: UpdateSource, cdk: String): Result<Unit> {
+    suspend fun confirmAndDownload(source: UpdateSource, cdk: String, version: String, channel: UpdateChannel = UpdateChannel.STABLE): Result<Unit> {
         _processState.value = UpdateProcessState.Downloading(0, "准备下载...", 0L, 0L)
         val info: UpdateInfo = when (source) {
             UpdateSource.MIRROR_CHYAN -> {
-                when (val result = downloader.checkVersionFromMirrorChyan(cdk)) {
+                when (val result = downloader.checkVersionFromMirrorChyan(cdk, channel.value)) {
                     is UpdateCheckResult.Available -> {
                         if (result.info.downloadUrl.isBlank()) {
                             _processState.value = UpdateProcessState.Failed(UpdateError.CdkRequired)
@@ -57,7 +58,7 @@ class AppUpdateHandler(
             }
 
             UpdateSource.GITHUB -> {
-                when (val result = downloader.checkVersionFromGitHub()) {
+                when (val result = downloader.getReleaseByTag(version)) {
                     is UpdateCheckResult.Available -> result.info
                     is UpdateCheckResult.Error -> {
                         _processState.value = UpdateProcessState.Failed(result.error)
