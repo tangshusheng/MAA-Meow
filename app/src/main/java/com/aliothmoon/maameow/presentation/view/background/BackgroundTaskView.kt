@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -443,7 +444,7 @@ fun BackgroundTaskView(
                                 .padding(top = 6.dp),
                             shape = RoundedCornerShape(8.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
                             )
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
@@ -465,7 +466,7 @@ fun BackgroundTaskView(
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Spacer(modifier = Modifier.weight(1f))
-                                    OutlinedButton(
+                                    FilledTonalButton(
                                         onClick = { viewModel.onMuteGameSound() },
                                         shape = RoundedCornerShape(8.dp),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
@@ -474,7 +475,7 @@ fun BackgroundTaskView(
                                         Text("关闭声音", style = MaterialTheme.typography.bodySmall)
                                     }
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    OutlinedButton(
+                                    FilledTonalButton(
                                         onClick = { viewModel.onUnmuteGameSound() },
                                         shape = RoundedCornerShape(8.dp),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
@@ -482,6 +483,25 @@ fun BackgroundTaskView(
                                     ) {
                                         Text("打开声音", style = MaterialTheme.typography.bodySmall)
                                     }
+                                }
+
+                                val closeAppOnTaskEnd by appSettingsManager.closeAppOnTaskEnd.collectAsStateWithLifecycle()
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = closeAppOnTaskEnd,
+                                        onCheckedChange = {
+                                            coroutineScope.launch { appSettingsManager.setCloseAppOnTaskEnd(it) }
+                                        },
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "任务结束后关闭应用",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
                                 }
 
                                 HorizontalDivider(
@@ -511,7 +531,10 @@ fun BackgroundTaskView(
                                             }
                                         },
                                         modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(8.dp)
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            contentColor = MaterialTheme.colorScheme.error
+                                        )
                                     ) {
                                         Text("关闭应用")
                                     }

@@ -176,4 +176,19 @@ class AppSettingsManager(private val context: Context) {
             context.dataStore.edit { it[muteOnGameLaunch] = enabled.toString() }
         }
     }
+
+    // 任务结束后关闭应用
+    val closeAppOnTaskEnd: StateFlow<Boolean> = settings
+        .map { it.closeAppOnTaskEnd.toBooleanStrictOrNull() ?: false }
+        .distinctUntilChanged()
+        .stateIn(
+            scope, SharingStarted.Eagerly,
+            initialSettings.closeAppOnTaskEnd.toBooleanStrictOrNull() ?: false
+        )
+
+    suspend fun setCloseAppOnTaskEnd(enabled: Boolean) {
+        with(AppSettingsSchema) {
+            context.dataStore.edit { it[closeAppOnTaskEnd] = enabled.toString() }
+        }
+    }
 }

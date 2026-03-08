@@ -10,6 +10,7 @@ import com.aliothmoon.maameow.data.model.TaskTypeInfo
 import com.aliothmoon.maameow.data.preferences.TaskChainState
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.domain.service.RuntimeLogCenter
+import com.aliothmoon.maameow.domain.state.MaaExecutionState
 import com.aliothmoon.maameow.domain.usecase.BuildTaskParamsUseCase
 import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.data.model.TaskParamProvider
@@ -45,6 +46,7 @@ class BackgroundTaskViewModel(
 
     init {
         observeServiceState()
+        observeTaskEnd()
     }
 
     private fun observeServiceState() {
@@ -57,6 +59,22 @@ class BackgroundTaskViewModel(
                     surfaceRef.get()?.let { setRemoteSurface(it) }
                 }
                 wasConnected = isConnected
+            }
+        }
+    }
+
+    private fun observeTaskEnd() {
+        viewModelScope.launch {
+            var prevState = compositionService.state.value
+            compositionService.state.collect { current ->
+                if (prevState == MaaExecutionState.RUNNING
+                    && (current == MaaExecutionState.IDLE || current == MaaExecutionState.ERROR)
+                    && appSettingsManager.closeAppOnTaskEnd.value
+                ) {
+                    Timber.i("Task ended (%s), auto closing app", current)
+                    compositionService.stopVirtualDisplay()
+                }
+                prevState = current
             }
         }
     }
