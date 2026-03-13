@@ -37,11 +37,11 @@ import com.aliothmoon.maameow.domain.state.MaaExecutionState
 import com.aliothmoon.maameow.presentation.LocalFloatingWindowContext
 import com.aliothmoon.maameow.presentation.components.AdaptiveTaskPromptDialog
 import com.aliothmoon.maameow.presentation.components.ResourceLoadingOverlay
-import com.aliothmoon.maameow.presentation.components.PlaceholderContent
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogType.ERROR
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogType.SUCCESS
 import com.aliothmoon.maameow.presentation.viewmodel.CopilotViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.ExpandedControlPanelViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.MiniGameViewModel
 import org.koin.compose.koinInject
 
 
@@ -54,6 +54,7 @@ fun ExpandedControlPanel(
     onLockToggle: (Boolean) -> Unit = {},
     viewModel: ExpandedControlPanelViewModel = viewModel(),
     copilotViewModel: CopilotViewModel = viewModel(),
+    miniGameViewModel: MiniGameViewModel = koinInject(),
     service: MaaCompositionService = koinInject(),
     appSettings: AppSettingsManager = koinInject()
 ) {
@@ -161,11 +162,7 @@ fun ExpandedControlPanel(
                         }
 
                         2 -> { // PanelTab.TOOLS
-                            PlaceholderContent(
-                                title = "小工具",
-                                description = "功能开发中...",
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            MiniGamePanel(modifier = Modifier.fillMaxSize())
                         }
 
                         3 -> { // PanelTab.LOG
@@ -179,7 +176,7 @@ fun ExpandedControlPanel(
                     }
                 }
 
-                if (uiState.currentTab == PanelTab.TASKS || uiState.currentTab == PanelTab.AUTO_BATTLE) {
+                if (uiState.currentTab == PanelTab.TASKS || uiState.currentTab == PanelTab.AUTO_BATTLE || uiState.currentTab == PanelTab.TOOLS) {
                     HorizontalDivider(
                         modifier = Modifier.padding(vertical = 6.dp),
                         thickness = 1.dp,
@@ -191,6 +188,7 @@ fun ExpandedControlPanel(
                             focusManager.clearFocus()
                             when (uiState.currentTab) {
                                 PanelTab.AUTO_BATTLE -> copilotViewModel.onStart()
+                                PanelTab.TOOLS -> miniGameViewModel.onStart()
                                 else -> viewModel.onStartTasks()
                             }
                         },

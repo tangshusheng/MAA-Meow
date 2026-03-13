@@ -29,7 +29,10 @@ enum class MaaTaskType(val value: String) {
 
     // 识别任务
     DEPOT("Depot"),
-    OPER_BOX("OperBox");
+    OPER_BOX("OperBox"),
+
+    // 自定义任务（小游戏等）
+    CUSTOM("Custom");
 
     companion object {
         fun fromValue(value: String): MaaTaskType? =

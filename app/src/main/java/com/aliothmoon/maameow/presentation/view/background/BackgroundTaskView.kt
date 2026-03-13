@@ -84,7 +84,6 @@ import com.aliothmoon.maameow.domain.service.UnifiedStateDispatcher
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
 import com.aliothmoon.maameow.manager.PermissionManager
 import com.aliothmoon.maameow.presentation.components.AdaptiveTaskPromptDialog
-import com.aliothmoon.maameow.presentation.components.PlaceholderContent
 import com.aliothmoon.maameow.presentation.components.ShizukuPermissionDialog
 import com.aliothmoon.maameow.presentation.view.panel.PanelHeader
 import com.aliothmoon.maameow.presentation.view.panel.LogPanel
@@ -93,8 +92,10 @@ import com.aliothmoon.maameow.presentation.view.panel.PanelTab
 import com.aliothmoon.maameow.presentation.view.panel.TaskConfigPanel
 import com.aliothmoon.maameow.presentation.view.panel.TaskListPanel
 import com.aliothmoon.maameow.presentation.view.panel.AutoBattlePanel
+import com.aliothmoon.maameow.presentation.view.panel.MiniGamePanel
 import com.aliothmoon.maameow.presentation.viewmodel.BackgroundTaskViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.CopilotViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.MiniGameViewModel
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -110,6 +111,7 @@ fun BackgroundTaskView(
     onFullscreenChanged: (Boolean) -> Unit = {},
     viewModel: BackgroundTaskViewModel = koinViewModel(),
     copilotViewModel: CopilotViewModel = koinInject(),
+    miniGameViewModel: MiniGameViewModel = koinInject(),
     compositionService: MaaCompositionService = koinInject(),
     dispatcher: UnifiedStateDispatcher = koinInject(),
     permissionManager: PermissionManager = koinInject(),
@@ -366,11 +368,7 @@ fun BackgroundTaskView(
                         }
 
                         2 -> {
-                            PlaceholderContent(
-                                title = "小工具",
-                                description = "功能开发中...",
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            MiniGamePanel(modifier = Modifier.fillMaxSize())
                         }
 
                         3 -> {
@@ -384,7 +382,7 @@ fun BackgroundTaskView(
                     }
                 }
 
-                if (state.currentTab == PanelTab.TASKS || state.currentTab == PanelTab.AUTO_BATTLE) {
+                if (state.currentTab == PanelTab.TASKS || state.currentTab == PanelTab.AUTO_BATTLE || state.currentTab == PanelTab.TOOLS) {
                     Spacer(modifier = Modifier.height(12.dp))
 
                     var showMoreActions by remember { mutableStateOf(false) }
@@ -401,6 +399,7 @@ fun BackgroundTaskView(
                                 when (state.currentTab) {
                                     PanelTab.TASKS -> viewModel.onStartTasks()
                                     PanelTab.AUTO_BATTLE -> copilotViewModel.onStart()
+                                    PanelTab.TOOLS -> miniGameViewModel.onStart()
                                     else -> {}
                                 }
                             },
@@ -425,6 +424,7 @@ fun BackgroundTaskView(
                                 when (state.currentTab) {
                                     PanelTab.TASKS -> viewModel.onStopTasks()
                                     PanelTab.AUTO_BATTLE -> copilotViewModel.onStop()
+                                    PanelTab.TOOLS -> miniGameViewModel.onStop()
                                     else -> {}
                                 }
                             },
