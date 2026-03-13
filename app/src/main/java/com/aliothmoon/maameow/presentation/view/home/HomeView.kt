@@ -6,8 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,10 +20,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.rounded.Build
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -36,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,14 +55,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.aliothmoon.maameow.BuildConfig
 import com.aliothmoon.maameow.constant.Routes
 import com.aliothmoon.maameow.data.datasource.ResourceDownloader
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
@@ -120,93 +124,22 @@ fun HomeView(
         onRetry = { viewModel.onTryResourceInit() }
     )
 
+    // 发现更新弹窗
     startupDialog?.let { result ->
-        var showReleaseNotes by remember { mutableStateOf(false) }
-        val hasReleaseNotes = result.appUpdate?.releaseNote?.isNotBlank() == true
-                || result.resourceUpdate?.releaseNote?.isNotBlank() == true
-
-        AlertDialog(
-            onDismissRequest = { updateViewModel.dismissStartupDialog() },
-            title = { Text("发现更新") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            result.appUpdate?.let {
-                                Text("应用新版本: ${it.version}")
-                            }
-                            result.resourceUpdate?.let {
-                                val display = ResourceDownloader.formatVersionForDisplay(it.version)
-                                Text("资源新版本: $display")
-                            }
-                        }
-                        if (hasReleaseNotes) {
-                            Text(
-                                text = if (showReleaseNotes) "收起" else "查看日志",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.clickable {
-                                    showReleaseNotes = !showReleaseNotes
-                                }
-                            )
-                        }
-                    }
-                    if (hasReleaseNotes && showReleaseNotes) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 200.dp)
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            result.appUpdate?.releaseNote?.takeIf { it.isNotBlank() }?.let { note ->
-                                MarkdownText(
-                                    markdown = note,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                            result.resourceUpdate?.releaseNote?.takeIf { it.isNotBlank() }
-                                ?.let { note ->
-                                    MarkdownText(
-                                        markdown = note,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                        }
-                    }
+        StartupUpdateDialog(
+            appVersion = result.appUpdate?.version,
+            resourceVersion = result.resourceUpdate?.version,
+            appReleaseNote = result.appUpdate?.releaseNote,
+            resourceReleaseNote = result.resourceUpdate?.releaseNote,
+            onConfirm = {
+                if (result.appUpdate != null) {
+                    updateViewModel.confirmAppDownload(result.appUpdate.version)
+                } else {
+                    updateViewModel.confirmResourceDownload()
                 }
+                updateViewModel.dismissStartupDialog()
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (result.appUpdate != null) {
-                            updateViewModel.confirmAppDownload(result.appUpdate.version)
-                        } else {
-                            updateViewModel.confirmResourceDownload()
-                        }
-                        updateViewModel.dismissStartupDialog()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50)
-                    )
-                ) {
-                    Text("下载更新")
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { updateViewModel.dismissStartupDialog() }) {
-                    Text("忽略")
-                }
-            }
+            onDismiss = { updateViewModel.dismissStartupDialog() }
         )
     }
 
@@ -357,92 +290,65 @@ fun HomeView(
             val skipScope = rememberCoroutineScope()
             when (shizukuStatus) {
                 ShizukuInstallHelper.ShizukuStatus.NOT_INSTALLED -> {
-                    AlertDialog(
-                        onDismissRequest = {},
-                        properties = DialogProperties(
-                            dismissOnBackPress = false,
-                            dismissOnClickOutside = false,
-                        ),
-                        title = { Text("未检测到 Shizuku") },
-                        text = {
-                            Text("本应用依赖 Shizuku 服务运行，检测到设备未安装 Shizuku，请先安装。")
+                    ShizukuStatusDialog(
+                        title = "未检测到 Shizuku",
+                        message = "本应用依赖 Shizuku 服务运行，检测到设备未安装 Shizuku，请先安装。",
+                        icon = Icons.Rounded.Warning,
+                        primaryText = "快捷安装 Shizuku",
+                        onPrimaryClick = {
+                            ShizukuInstallHelper.installShizuku(context)
                         },
-                        confirmButton = {
-                            ShizukuCheckActionButtons(
-                                primaryActionText = "快捷安装 Shizuku",
-                                onPrimaryAction = {
-                                    ShizukuInstallHelper.installShizuku(context)
-                                },
-                                showRootModeAction = permissionState.rootAvailable,
-                                onUseRootMode = {
-                                    skipScope.launch {
-                                        permissionManager.setStartupBackend(RemoteBackend.ROOT)
-                                    }
-                                },
-                                onSkipCheck = {
-                                    skipScope.launch {
-                                        appSettingsManager.setSkipShizukuCheck(true)
-                                    }
-                                }
-                            )
+                        showRootOption = permissionState.rootAvailable,
+                        onRootClick = {
+                            skipScope.launch {
+                                permissionManager.setStartupBackend(RemoteBackend.ROOT)
+                            }
+                        },
+                        onSkipClick = {
+                            skipScope.launch {
+                                appSettingsManager.setSkipShizukuCheck(true)
+                            }
                         }
                     )
                 }
 
                 ShizukuInstallHelper.ShizukuStatus.APP_NOT_RUNNING -> {
-                    AlertDialog(
-                        onDismissRequest = {},
-                        properties = DialogProperties(
-                            dismissOnBackPress = false,
-                            dismissOnClickOutside = false,
-                        ),
-                        title = { Text("Shizuku 未启动") },
-                        text = {
-                            Text("检测到 Shizuku 已安装但服务未启动，请打开 Shizuku 应用并启动服务。")
+                    ShizukuStatusDialog(
+                        title = "Shizuku 未启动",
+                        message = "检测到 Shizuku 已安装但服务未启动，请打开 Shizuku 应用并启动服务。",
+                        icon = Icons.Rounded.Build,
+                        primaryText = "打开 Shizuku",
+                        onPrimaryClick = {
+                            runCatching {
+                                val intent =
+                                    context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
+                                if (intent != null) context.startActivity(intent)
+                            }
                         },
-                        confirmButton = {
-                            ShizukuCheckActionButtons(
-                                primaryActionText = "打开 Shizuku",
-                                onPrimaryAction = {
-                                    runCatching {
-                                        val intent = context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
-                                        if (intent != null) context.startActivity(intent)
-                                    }
-                                },
-                                showRootModeAction = permissionState.rootAvailable,
-                                onUseRootMode = {
-                                    skipScope.launch {
-                                        permissionManager.setStartupBackend(RemoteBackend.ROOT)
-                                    }
-                                },
-                                onSkipCheck = {
-                                    skipScope.launch {
-                                        appSettingsManager.setSkipShizukuCheck(true)
-                                    }
-                                }
-                            )
+                        showRootOption = permissionState.rootAvailable,
+                        onRootClick = {
+                            skipScope.launch {
+                                permissionManager.setStartupBackend(RemoteBackend.ROOT)
+                            }
+                        },
+                        onSkipClick = {
+                            skipScope.launch {
+                                appSettingsManager.setSkipShizukuCheck(true)
+                            }
                         }
                     )
                 }
 
                 ShizukuInstallHelper.ShizukuStatus.SUI_AVAILABLE -> {
-                    AlertDialog(
-                        onDismissRequest = {},
-                        properties = DialogProperties(
-                            dismissOnBackPress = false,
-                            dismissOnClickOutside = false,
-                        ),
-                        title = { Text("检测到 Sui") },
-                        text = {
-                            Text("当前使用 Sui 提供 Shizuku 服务，Sui 以 Root 权限运行，MaaMeow 可能无法正常工作，请以实际测试为主")
+                    ShizukuStatusDialog(
+                        title = "检测到 Sui",
+                        message = "当前使用 Sui 提供 Shizuku 服务，Sui 以 Root 权限运行，MaaMeow 可能无法正常工作，请以实际测试为主",
+                        icon = Icons.Rounded.Info,
+                        primaryText = "知道了",
+                        onPrimaryClick = {
+                            skipScope.launch { appSettingsManager.setSkipShizukuCheck(true) }
                         },
-                        confirmButton = {
-                            Button(onClick = {
-                                skipScope.launch { appSettingsManager.setSkipShizukuCheck(true) }
-                            }) {
-                                Text("知道了")
-                            }
-                        }
+                        showSkipOption = false
                     )
                 }
 
@@ -452,39 +358,109 @@ fun HomeView(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@OptIn(ExperimentalLayoutApi::class)
-private fun ShizukuCheckActionButtons(
-    primaryActionText: String,
-    onPrimaryAction: () -> Unit,
-    showRootModeAction: Boolean,
-    onUseRootMode: () -> Unit,
-    onSkipCheck: () -> Unit
+private fun ShizukuStatusDialog(
+    title: String,
+    message: String,
+    icon: ImageVector,
+    primaryText: String,
+    onPrimaryClick: () -> Unit,
+    showRootOption: Boolean = false,
+    onRootClick: () -> Unit = {},
+    showSkipOption: Boolean = true,
+    onSkipClick: () -> Unit = {}
 ) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+    BasicAlertDialog(
+        onDismissRequest = {},
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false
+        )
     ) {
-        if (showRootModeAction) {
-            TextButton(
-                onClick = onUseRootMode,
-                shape = MaterialTheme.shapes.large
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("使用 Root 模式")
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Button(
+                        onClick = onPrimaryClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large
+                    ) {
+                        Text(primaryText)
+                    }
+
+                    if (showRootOption) {
+                        OutlinedButton(
+                            onClick = onRootClick,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large
+                        ) {
+                            Text("切换至 Root 模式")
+                        }
+                    }
+
+                    if (showSkipOption) {
+                        TextButton(
+                            onClick = onSkipClick,
+                            shape = MaterialTheme.shapes.large
+                        ) {
+                            Text(
+                                text = "跳过检查 (不推荐)",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
             }
-        }
-        OutlinedButton(
-            onClick = onSkipCheck,
-            shape = MaterialTheme.shapes.large
-        ) {
-            Text("跳过检查")
-        }
-        Button(
-            onClick = onPrimaryAction,
-            shape = MaterialTheme.shapes.large
-        ) {
-            Text(primaryActionText)
         }
     }
 }
@@ -743,7 +719,7 @@ private fun PermissionCard(
                     color = contentColor.copy(alpha = 0.7f)
                 )
                 Icon(
-                    imageVector = if (expandedPermissions) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    imageVector = if (expandedPermissions) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = contentColor.copy(alpha = 0.7f)
@@ -911,6 +887,197 @@ private fun ForegroundModeSection(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium
                 )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StartupUpdateDialog(
+    appVersion: String?,
+    resourceVersion: String?,
+    appReleaseNote: String?,
+    resourceReleaseNote: String?,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var showReleaseNotes by remember { mutableStateOf(false) }
+    val hasReleaseNotes = !appReleaseNote.isNullOrBlank() || !resourceReleaseNote.isNullOrBlank()
+
+    BasicAlertDialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "发现新版本",
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 版本展示卡片
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        appVersion?.let {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("应用版本", style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    it,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        resourceVersion?.let {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("资源版本", style = MaterialTheme.typography.bodyMedium)
+                                val display = ResourceDownloader.formatVersionForDisplay(it)
+                                Text(
+                                    display,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (hasReleaseNotes) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showReleaseNotes = !showReleaseNotes }
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (showReleaseNotes) "收起更新日志" else "查看更新日志",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Icon(
+                            imageVector = if (showReleaseNotes) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    AnimatedVisibility(visible = showReleaseNotes) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 200.dp)
+                                .padding(top = 8.dp)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            appReleaseNote?.takeIf { it.isNotBlank() }?.let { note ->
+                                Text(
+                                    "应用更新内容:",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                MarkdownText(
+                                    markdown = note,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            resourceReleaseNote?.takeIf { it.isNotBlank() }?.let { note ->
+                                Text(
+                                    "资源更新内容:",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                MarkdownText(
+                                    markdown = note,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4CAF50) // 保持原有的下载绿色，或根据需要改为主题色
+                        )
+                    ) {
+                        Text("下载并更新")
+                    }
+
+                    TextButton(
+                        onClick = onDismiss,
+                        shape = MaterialTheme.shapes.large
+                    ) {
+                        Text("稍后更新", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
         }
     }
