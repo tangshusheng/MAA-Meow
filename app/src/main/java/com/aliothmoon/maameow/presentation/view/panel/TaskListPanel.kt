@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +38,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -48,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.aliothmoon.maameow.data.model.TaskChainNode
@@ -78,14 +81,13 @@ fun TaskListPanel(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp)
                     .clickable { showEditDialog = true },
                 colors = CardDefaults.cardColors(containerColor = Color.White),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -160,11 +162,13 @@ private fun TaskNodeRow(
                 .padding(horizontal = 4.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Checkbox(
-                checked = node.enabled,
-                onCheckedChange = onEnabledChange,
-                modifier = Modifier.size(20.dp)
-            )
+            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+                Checkbox(
+                    checked = node.enabled,
+                    onCheckedChange = onEnabledChange,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = node.name,
@@ -360,16 +364,18 @@ private fun TaskEditRow(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        IconButton(
-            onClick = onRemove,
-            modifier = Modifier.size(24.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "删除",
-                modifier = Modifier.size(16.dp),
-                tint = Color(0xFFef4444)
-            )
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+            IconButton(
+                onClick = onRemove,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "删除",
+                    modifier = Modifier.size(16.dp),
+                    tint = Color(0xFFef4444)
+                )
+            }
         }
     }
 }
