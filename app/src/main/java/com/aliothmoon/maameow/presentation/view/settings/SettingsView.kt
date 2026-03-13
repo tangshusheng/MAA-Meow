@@ -18,11 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Build
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -136,35 +133,34 @@ fun SettingsView(
         ) {
             // 更新管理
             item {
-                val color = tertiaryContent
                 InfoCard(
                     title = "",
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = color
+                    contentColor = tertiaryContent
                 ) {
                     Text(
                         text = "更新管理",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Medium,
-                        color = color,
+                        color = tertiaryContent,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
-                    SettingClickItem("重新初始化资源", "从内置资源包重新解压", color) {
+                    SettingClickItem("重新初始化资源", "从内置资源包重新解压", tertiaryContent) {
                         showReInitConfirm = true
                     }
-                    SettingsDivider(color)
+                    SettingsDivider(tertiaryContent)
                     SettingSwitchItem(
                         title = "启动时检查更新",
                         description = "启动应用时自动检查应用和资源更新",
-                        contentColor = color,
+                        contentColor = tertiaryContent,
                         checked = autoCheckUpdate,
                         onCheckedChange = { viewModel.setAutoCheckUpdate(it) }
                     )
-                    SettingsDivider(color)
+                    SettingsDivider(tertiaryContent)
                     SettingChannelItem(
-                        contentColor = color,
+                        contentColor = tertiaryContent,
                         selectedChannel = updateChannel,
                         onChannelSelected = { viewModel.setUpdateChannel(it) }
                     )
@@ -246,6 +242,7 @@ fun SettingsView(
                     SettingsDivider(color)
                     SettingSwitchItem(
                         title = "跳过 Shizuku 检查",
+                        description = "如果 Shizuku 已启动但应用仍弹出警告，可开启此项（仅限 Shizuku 模式）",
                         contentColor = color,
                         checked = skipShizukuCheck,
                         enabled = startupBackend == RemoteBackend.SHIZUKU,
@@ -467,40 +464,51 @@ private fun SettingRemoteBackendItem(
     selectedBackend: RemoteBackend,
     onBackendSelected: (RemoteBackend) -> Unit
 ) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "启动模式",
-            style = MaterialTheme.typography.bodyLarge,
-            color = contentColor
-        )
-        RemoteBackend.entries.forEach { backend ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .selectable(
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = "启动模式",
+                style = MaterialTheme.typography.bodyLarge,
+                color = contentColor
+            )
+            Text(
+                text = "选择应用获取系统权限的方式",
+                style = MaterialTheme.typography.bodySmall,
+                color = contentColor.copy(alpha = 0.7f)
+            )
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RemoteBackend.entries.forEach { backend ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .selectable(
+                            selected = backend == selectedBackend,
+                            onClick = { onBackendSelected(backend) },
+                            role = Role.RadioButton
+                        )
+                ) {
+                    RadioButton(
                         selected = backend == selectedBackend,
-                        onClick = { onBackendSelected(backend) },
-                        role = Role.RadioButton
+                        onClick = null
                     )
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected = backend == selectedBackend,
-                    onClick = null
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = backend.display,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = contentColor
-                )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = backend.display,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = contentColor
+                    )
+                }
             }
         }
     }
