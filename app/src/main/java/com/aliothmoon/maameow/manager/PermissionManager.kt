@@ -8,6 +8,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.aliothmoon.maameow.RemoteService
 import com.aliothmoon.maameow.data.permission.PermissionState
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.domain.models.RemoteBackend
 import com.aliothmoon.maameow.domain.models.RunMode
 import com.aliothmoon.maameow.remote.PermissionGrantRequest
 import com.aliothmoon.maameow.remote.PermissionGrantRequest.Companion.PERM_ACCESSIBILITY
@@ -20,6 +21,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -45,29 +47,24 @@ class PermissionManager(
     private val _isGranting = MutableStateFlow(false)
     val isGranting: StateFlow<Boolean> = _isGranting.asStateFlow()
 
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     init {
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
-        ShizukuManager.addBinderReceivedListener {
-            Timber.d("Shizuku binder received")
-            refresh()
-        }
-        ShizukuManager.addBinderDeadListener {
-            Timber.d("Shizuku binder dead")
-            _state.update { it.copy(shizuku = false) }
+        scope.launch {
+            RemoteAccessCoordinator.state.collect { remoteState ->
+                applyRemoteAccessState(remoteState)
+            }
         }
         scope.launch {
-            state.map { it.shizuku }
+            state.map { it.startupBackend to it.remoteAccessGranted }
                 .distinctUntilChanged()
-                .filter { it }
+                .filter { (_, granted) -> granted }
                 .collect {
                     RemoteServiceManager.bind()
                 }
         }
 
-        // 初始检查
         refresh()
     }
 
@@ -75,16 +72,32 @@ class PermissionManager(
         refresh()
     }
 
-
     fun refresh() {
+        val remoteState = RemoteAccessCoordinator.refresh()
         _state.value = PermissionState(
-            shizuku = ShizukuManager.checkPermissionGranted(),
+            shizukuAvailable = remoteState.shizukuAvailable,
+            shizuku = remoteState.shizukuGranted,
+            root = remoteState.rootGranted,
+            rootAvailable = remoteState.rootAvailable,
+            startupBackend = remoteState.configuredBackend,
             overlay = checkOverlay(),
             storage = checkStorage(),
             accessibility = checkAccessibility(),
             batteryWhitelist = checkBatteryWhitelist(),
             notification = checkNotification()
         )
+    }
+
+    private fun applyRemoteAccessState(remoteState: RemoteAccessState) {
+        _state.update { current ->
+            current.copy(
+                shizukuAvailable = remoteState.shizukuAvailable,
+                shizuku = remoteState.shizukuGranted,
+                root = remoteState.rootGranted,
+                rootAvailable = remoteState.rootAvailable,
+                startupBackend = remoteState.configuredBackend
+            )
+        }
     }
 
     private fun checkOverlay(): Boolean {
@@ -159,15 +172,42 @@ class PermissionManager(
         }
     }
 
-
     suspend fun requestShizuku(): Boolean {
-        if (!ShizukuManager.isShizukuAvailable()) {
+        if (!RemoteAccessCoordinator.isAvailable(RemoteBackend.SHIZUKU)) {
+            refresh()
             return false
         }
 
-        val granted = ShizukuManager.requestPermission()
-        _state.update { it.copy(shizuku = granted) }
+        val granted = RemoteAccessCoordinator.request(RemoteBackend.SHIZUKU)
+        refresh()
         return granted
+    }
+
+    suspend fun requestRoot(): Boolean {
+        val granted = RemoteAccessCoordinator.request(RemoteBackend.ROOT)
+        refresh()
+        return granted
+    }
+
+    suspend fun requestRemoteAccess(): Boolean {
+        refresh()
+        if (permissions.remoteAccessGranted) {
+            return true
+        }
+        val granted = RemoteAccessCoordinator.request(permissions.startupBackend)
+        refresh()
+        return granted
+    }
+
+    suspend fun setStartupBackend(backend: RemoteBackend) {
+        val currentBackend = permissions.startupBackend
+        if (currentBackend == backend) {
+            refresh()
+            return
+        }
+        appSettings.setStartupBackend(backend)
+        RemoteServiceManager.unbind()
+        refresh()
     }
 
     suspend fun requestOverlay(context: Context): Boolean {
@@ -265,7 +305,7 @@ class PermissionManager(
     }
 
     suspend fun quickGrantAccessibility(): Boolean {
-        if (!ShizukuManager.checkPermissionGranted()) return false
+        if (!permissions.remoteAccessGranted) return false
         return try {
             val result = RemoteServiceManager.useRemoteService { srv ->
                 srv.grantPermissions(
@@ -293,8 +333,8 @@ class PermissionManager(
     }
 
     suspend fun grantRequiredPermissions(srv: RemoteService) {
-        if (!ShizukuManager.checkPermissionGranted()) {
-            Timber.w("grantAll: Shizuku permission not granted")
+        if (!permissions.remoteAccessGranted) {
+            Timber.w("grantAll: remote permission not granted")
             return
         }
 
@@ -315,7 +355,6 @@ class PermissionManager(
                 )
             )
 
-            // 仅前台模式等待无障碍服务连接
             if (isForeground && result.accessibilityPermission) {
                 withTimeoutOrNull(3000L) {
                     AccessibilityHelperService.isConnected
@@ -325,8 +364,6 @@ class PermissionManager(
             }
 
             Timber.i("grantAll result: $result")
-
-            // 刷新权限状态
             refresh()
         } catch (e: Exception) {
             Timber.e(e, "grantAll failed")
@@ -334,6 +371,4 @@ class PermissionManager(
             _isGranting.value = false
         }
     }
-
-
 }

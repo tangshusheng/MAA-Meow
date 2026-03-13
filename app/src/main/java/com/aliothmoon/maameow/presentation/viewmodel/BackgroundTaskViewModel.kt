@@ -238,7 +238,7 @@ class BackgroundTaskViewModel(
                         "显示模式设置失败，请重试"
 
                     MaaCompositionService.StartResult.ConnectionError.ConnectPhase.VIRTUAL_DISPLAY ->
-                        "虚拟屏幕启动失败，请检查 Shizuku 权限"
+                        "虚拟屏幕启动失败，请检查远程服务权限"
 
                     MaaCompositionService.StartResult.ConnectionError.ConnectPhase.MAA_CONNECT ->
                         "连接 MaaCore 超时，请重试"

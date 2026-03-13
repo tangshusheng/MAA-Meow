@@ -10,6 +10,7 @@ import com.aliothmoon.maameow.data.model.update.UpdateSource
 import com.aliothmoon.maameow.domain.models.AppSettings
 import com.aliothmoon.maameow.domain.models.AppSettingsSchema
 import com.aliothmoon.maameow.domain.models.OverlayControlMode
+import com.aliothmoon.maameow.domain.models.RemoteBackend
 import com.aliothmoon.maameow.domain.models.RunMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -145,6 +146,25 @@ class AppSettingsManager(private val context: Context) {
     suspend fun setAutoCheckUpdate(enabled: Boolean) {
         with(AppSettingsSchema) {
             context.dataStore.edit { it[autoCheckUpdate] = enabled.toString() }
+        }
+    }
+
+    // 远程服务启动模式
+    val startupBackend: StateFlow<RemoteBackend> = settings
+        .map {
+            runCatching { RemoteBackend.valueOf(it.startupBackend) }
+                .getOrDefault(RemoteBackend.SHIZUKU)
+        }
+        .distinctUntilChanged()
+        .stateIn(
+            scope, SharingStarted.Eagerly,
+            runCatching { RemoteBackend.valueOf(initialSettings.startupBackend) }
+                .getOrDefault(RemoteBackend.SHIZUKU)
+        )
+
+    suspend fun setStartupBackend(backend: RemoteBackend) {
+        with(AppSettingsSchema) {
+            context.dataStore.edit { it[startupBackend] = backend.name }
         }
     }
 

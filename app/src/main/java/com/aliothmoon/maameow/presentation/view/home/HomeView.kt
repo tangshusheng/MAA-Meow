@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -60,11 +62,12 @@ import androidx.navigation.NavController
 import com.aliothmoon.maameow.BuildConfig
 import com.aliothmoon.maameow.constant.Routes
 import com.aliothmoon.maameow.data.datasource.ResourceDownloader
+import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.data.permission.PermissionState
 import com.aliothmoon.maameow.domain.models.OverlayControlMode
+import com.aliothmoon.maameow.domain.models.RemoteBackend
 import com.aliothmoon.maameow.domain.models.RunMode
 import com.aliothmoon.maameow.domain.state.ResourceInitState
-import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.manager.PermissionManager
 import com.aliothmoon.maameow.manager.ShizukuInstallHelper
 import com.aliothmoon.maameow.presentation.components.ResourceInitDialog
@@ -285,7 +288,7 @@ fun HomeView(
                     PermissionCard(
                         permissionState = permissionState,
                         isGranting = uiState.isGranting,
-                        onRequestShizuku = { viewModel.onRequestShizuku(context) },
+                        onRequestRemoteAccess = { viewModel.onRequestRemoteAccess(context) },
                         onRequestOverlay = { viewModel.onRequestOverlay(context) },
                         onRequestStorage = { viewModel.onRequestStorage(context) },
                         onRequestBatteryWhitelist = { viewModel.onRequestBatteryWhitelist(context) },
@@ -350,7 +353,7 @@ fun HomeView(
             shizukuStatus = ShizukuInstallHelper.checkStatus(context)
             onPauseOrDispose {}
         }
-        if (!skipShizukuCheck) {
+        if (permissionState.startupBackend == RemoteBackend.SHIZUKU && !skipShizukuCheck) {
             val skipScope = rememberCoroutineScope()
             when (shizukuStatus) {
                 ShizukuInstallHelper.ShizukuStatus.NOT_INSTALLED -> {
@@ -365,18 +368,23 @@ fun HomeView(
                             Text("本应用依赖 Shizuku 服务运行，检测到设备未安装 Shizuku，请先安装。")
                         },
                         confirmButton = {
-                            Button(
-                                onClick = { ShizukuInstallHelper.installShizuku(context) }
-                            ) {
-                                Text("快速安装 Shizuku")
-                            }
-                        },
-                        dismissButton = {
-                            OutlinedButton(onClick = {
-                                skipScope.launch { appSettingsManager.setSkipShizukuCheck(true) }
-                            }) {
-                                Text("跳过检查")
-                            }
+                            ShizukuCheckActionButtons(
+                                primaryActionText = "快捷安装 Shizuku",
+                                onPrimaryAction = {
+                                    ShizukuInstallHelper.installShizuku(context)
+                                },
+                                showRootModeAction = permissionState.rootAvailable,
+                                onUseRootMode = {
+                                    skipScope.launch {
+                                        permissionManager.setStartupBackend(RemoteBackend.ROOT)
+                                    }
+                                },
+                                onSkipCheck = {
+                                    skipScope.launch {
+                                        appSettingsManager.setSkipShizukuCheck(true)
+                                    }
+                                }
+                            )
                         }
                     )
                 }
@@ -393,21 +401,26 @@ fun HomeView(
                             Text("检测到 Shizuku 已安装但服务未启动，请打开 Shizuku 应用并启动服务。")
                         },
                         confirmButton = {
-                            Button(onClick = {
-                                runCatching {
-                                    val intent = context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
-                                    if (intent != null) context.startActivity(intent)
+                            ShizukuCheckActionButtons(
+                                primaryActionText = "打开 Shizuku",
+                                onPrimaryAction = {
+                                    runCatching {
+                                        val intent = context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
+                                        if (intent != null) context.startActivity(intent)
+                                    }
+                                },
+                                showRootModeAction = permissionState.rootAvailable,
+                                onUseRootMode = {
+                                    skipScope.launch {
+                                        permissionManager.setStartupBackend(RemoteBackend.ROOT)
+                                    }
+                                },
+                                onSkipCheck = {
+                                    skipScope.launch {
+                                        appSettingsManager.setSkipShizukuCheck(true)
+                                    }
                                 }
-                            }) {
-                                Text("打开 Shizuku")
-                            }
-                        },
-                        dismissButton = {
-                            OutlinedButton(onClick = {
-                                skipScope.launch { appSettingsManager.setSkipShizukuCheck(true) }
-                            }) {
-                                Text("跳过检查")
-                            }
+                            )
                         }
                     )
                 }
@@ -435,6 +448,43 @@ fun HomeView(
 
                 ShizukuInstallHelper.ShizukuStatus.READY -> {}
             }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun ShizukuCheckActionButtons(
+    primaryActionText: String,
+    onPrimaryAction: () -> Unit,
+    showRootModeAction: Boolean,
+    onUseRootMode: () -> Unit,
+    onSkipCheck: () -> Unit
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (showRootModeAction) {
+            TextButton(
+                onClick = onUseRootMode,
+                shape = MaterialTheme.shapes.large
+            ) {
+                Text("使用 Root 模式")
+            }
+        }
+        OutlinedButton(
+            onClick = onSkipCheck,
+            shape = MaterialTheme.shapes.large
+        ) {
+            Text("跳过检查")
+        }
+        Button(
+            onClick = onPrimaryAction,
+            shape = MaterialTheme.shapes.large
+        ) {
+            Text(primaryActionText)
         }
     }
 }
@@ -641,7 +691,7 @@ private fun PermissionRow(
 private fun PermissionCard(
     permissionState: PermissionState,
     isGranting: Boolean,
-    onRequestShizuku: () -> Unit,
+    onRequestRemoteAccess: () -> Unit,
     onRequestOverlay: () -> Unit,
     onRequestStorage: () -> Unit,
     onRequestBatteryWhitelist: () -> Unit,
@@ -672,9 +722,9 @@ private fun PermissionCard(
             )
 
             PermissionRow(
-                title = "Shizuku权限",
-                granted = permissionState.shizuku,
-                onClick = onRequestShizuku,
+                title = permissionState.remotePermissionLabel,
+                granted = permissionState.remoteAccessGranted,
+                onClick = onRequestRemoteAccess,
                 isLoading = isGranting,
                 contentColor = contentColor
             )
@@ -725,7 +775,7 @@ private fun PermissionCard(
                         title = "无障碍权限",
                         granted = permissionState.accessibility,
                         onClick = onRequestAccessibility,
-                        ungrantedText = if (permissionState.shizuku) "快捷授权" else "请求权限",
+                        ungrantedText = if (permissionState.remoteAccessGranted) "快捷授权" else "请求权限",
                         contentColor = contentColor
                     )
                     PermissionRow(

@@ -86,6 +86,13 @@
             android:multiprocess="false"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
+        <provider
+            android:name=".root.RootServiceBootstrapProvider"
+            android:authorities="${applicationId}.root.bootstrap"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true" />
+
         <!-- FileProvider for log export -->
         <provider
             android:name="androidx.core.content.FileProvider"

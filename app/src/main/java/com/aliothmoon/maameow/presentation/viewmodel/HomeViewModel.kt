@@ -17,7 +17,6 @@ import com.aliothmoon.maameow.domain.state.MaaExecutionState
 import com.aliothmoon.maameow.manager.PermissionManager
 import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.manager.RemoteServiceManager.useRemoteService
-import com.aliothmoon.maameow.manager.ShizukuManager
 import com.aliothmoon.maameow.overlay.OverlayController
 import com.aliothmoon.maameow.presentation.state.HomeUiState
 import com.aliothmoon.maameow.presentation.state.StatusColorType
@@ -171,16 +170,20 @@ class HomeViewModel(
         }
     }
 
-    fun onRequestShizuku(context: Context) {
+    fun onRequestRemoteAccess(context: Context) {
         viewModelScope.launch {
-            if (!ShizukuManager.isShizukuAvailable()) {
-                Toast.makeText(context, "Shizuku服务不存在，请检查服务是否启动", Toast.LENGTH_SHORT)
-                    .show()
+            val backend = permissionManager.permissions.startupBackend
+            if (!permissionManager.permissions.isStartupBackendAvailable(backend)) {
+                Toast.makeText(
+                    context,
+                    "${backend.display}不可用，请检查对应服务是否启动",
+                    Toast.LENGTH_SHORT
+                ).show()
                 return@launch
             }
-            val granted = permissionManager.requestShizuku()
+            val granted = permissionManager.requestRemoteAccess()
             if (!granted) {
-                Toast.makeText(context, "Shizuku授权失败", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "${backend.display}授权失败", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -211,7 +214,7 @@ class HomeViewModel(
 
     fun onRequestAccessibility(context: Context) {
         viewModelScope.launch {
-            if (permissionManager.permissions.shizuku) {
+            if (permissionManager.permissions.remoteAccessGranted) {
                 val success = permissionManager.quickGrantAccessibility()
                 if (success) return@launch
             }
@@ -239,12 +242,11 @@ class HomeViewModel(
 
                 // 检查必要权限
                 val currentMode = appSettingsManager.overlayControlMode.value
-                // 先检查shizuku
-                if (!state.shizuku) {
+                if (!state.remoteAccessGranted) {
                     _uiState.update { it.copy(isLoading = false) }
                     Toast.makeText(
                         application,
-                        "请先授予Shizuku权限",
+                        "请先授予${state.remotePermissionLabel}",
                         Toast.LENGTH_SHORT
                     ).show()
                     return@launch
@@ -322,11 +324,11 @@ class HomeViewModel(
     fun onChangeTo16x9Resolution(ctx: Context) {
         viewModelScope.launch {
             try {
-
-                if (!permissionManager.permissions.shizuku) {
-                    val ret = permissionManager.requestShizuku()
+                val label = permissionManager.permissions.remotePermissionLabel
+                if (!permissionManager.permissions.remoteAccessGranted) {
+                    val ret = permissionManager.requestRemoteAccess()
                     if (!ret) {
-                        Toast.makeText(ctx, "Shizuku权限未获取", Toast.LENGTH_SHORT)
+                        Toast.makeText(ctx, "${label}未获取", Toast.LENGTH_SHORT)
                             .show()
                         return@launch
                     }
@@ -358,11 +360,11 @@ class HomeViewModel(
         Timber.i("onResetResolution: Resetting resolution to default")
         viewModelScope.launch {
             try {
-
-                if (!permissionManager.permissions.shizuku) {
-                    val ret = permissionManager.requestShizuku()
+                val label = permissionManager.permissions.remotePermissionLabel
+                if (!permissionManager.permissions.remoteAccessGranted) {
+                    val ret = permissionManager.requestRemoteAccess()
                     if (!ret) {
-                        Toast.makeText(ctx, "Shizuku权限未获取", Toast.LENGTH_SHORT)
+                        Toast.makeText(ctx, "${label}未获取", Toast.LENGTH_SHORT)
                             .show()
                         return@launch
                     }
@@ -428,7 +430,7 @@ class HomeViewModel(
             } else {
                 DisplayMode.PRIMARY
             }
-            if (permissionManager.permissions.shizuku) {
+            if (permissionManager.permissions.remoteAccessGranted) {
                 useRemoteService {
                     it.setVirtualDisplayMode(mode)
                 }

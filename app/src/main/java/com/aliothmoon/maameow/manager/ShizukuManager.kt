@@ -1,6 +1,7 @@
 package com.aliothmoon.maameow.manager
 
 import android.content.pm.PackageManager
+import com.aliothmoon.maameow.domain.models.RemoteBackend
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.catch
@@ -8,20 +9,19 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import rikka.shizuku.Shizuku
 import timber.log.Timber
+import java.util.concurrent.CopyOnWriteArraySet
+import java.util.concurrent.atomic.AtomicBoolean
 
-object ShizukuManager {
+object ShizukuManager : RemoteAccessPermissionBackend {
 
+    override val backend = RemoteBackend.SHIZUKU
 
-    fun addBinderReceivedListener(listener: Shizuku.OnBinderReceivedListener) {
-        Shizuku.addBinderReceivedListenerSticky(listener)
-    }
+    private val listeners = CopyOnWriteArraySet<RemoteAccessStateListener>()
+    private val observingState = AtomicBoolean(false)
 
-    fun addBinderDeadListener(listener: Shizuku.OnBinderDeadListener) {
-        Shizuku.addBinderDeadListener(listener)
-    }
+    fun isShizukuAvailable(): Boolean = isAvailable()
 
-
-    fun isShizukuAvailable(): Boolean {
+    override fun isAvailable(): Boolean {
         return try {
             Shizuku.pingBinder()
         } catch (e: Exception) {
@@ -30,28 +30,34 @@ object ShizukuManager {
         }
     }
 
-    fun checkPermissionGranted(): Boolean {
-        if (!isShizukuAvailable()) {
+    override fun isGranted(): Boolean {
+        if (!isAvailable()) {
             return false
         }
         return try {
             Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
 
-    suspend fun requestPermission(timeoutMs: Long = 15_000): Boolean {
-        if (!isShizukuAvailable()) return false
+    override suspend fun requestPermission(): Boolean {
+        ensureStateObservation()
 
-        if (Shizuku.isPreV11()) return true
+        if (!isAvailable()) return false
 
-        if (checkPermissionGranted()) {
+        if (Shizuku.isPreV11()) {
+            notifyStateChanged()
             return true
         }
 
-        return try {
-            withTimeoutOrNull(timeoutMs) {
+        if (isGranted()) {
+            notifyStateChanged()
+            return true
+        }
+
+        val granted = try {
+            withTimeoutOrNull(15_000) {
                 callbackFlow {
                     val requestCode = (1000..9999).random()
                     val listener = Shizuku.OnRequestPermissionResultListener { code, result ->
@@ -79,6 +85,9 @@ object ShizukuManager {
             Timber.e(e, "Error requesting permission")
             false
         }
+
+        notifyStateChanged()
+        return granted
     }
 
     suspend fun <T> requireShizukuPermissionGranted(action: suspend () -> T): T {
@@ -87,5 +96,35 @@ object ShizukuManager {
             throw IllegalStateException("request shizuku permission failed")
         }
         return action()
+    }
+
+    override fun addStateListener(listener: RemoteAccessStateListener) {
+        ensureStateObservation()
+        listeners += listener
+    }
+
+    override fun removeStateListener(listener: RemoteAccessStateListener) {
+        listeners -= listener
+    }
+
+    private fun ensureStateObservation() {
+        if (!observingState.compareAndSet(false, true)) {
+            return
+        }
+        Shizuku.addBinderReceivedListenerSticky {
+            Timber.d("Shizuku binder received")
+            notifyStateChanged()
+        }
+        Shizuku.addBinderDeadListener {
+            Timber.d("Shizuku binder dead")
+            notifyStateChanged()
+        }
+    }
+
+    private fun notifyStateChanged() {
+        listeners.forEach { listener ->
+            runCatching { listener.onStateChanged(backend) }
+                .onFailure { Timber.w(it, "notifyStateChanged failed") }
+        }
     }
 }

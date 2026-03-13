@@ -1,22 +1,17 @@
 package com.aliothmoon.maameow.manager
 
-import android.content.ComponentName
-import android.content.ServiceConnection
+import android.content.Context
 import android.os.IBinder
-import com.aliothmoon.maameow.BuildConfig
 import com.aliothmoon.maameow.RemoteService
-import com.aliothmoon.maameow.manager.ShizukuManager.requireShizukuPermissionGranted
-import com.aliothmoon.maameow.remote.RemoteServiceImpl
+import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.domain.models.RemoteBackend
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
-import rikka.shizuku.Shizuku
 import timber.log.Timber
-import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 object RemoteServiceManager {
@@ -29,37 +24,52 @@ object RemoteServiceManager {
         data class Error(val exception: Throwable) : ServiceState()
     }
 
+    private val currentBinder = AtomicReference<IBinder>()
+    private val unbindingIntentionally = AtomicBoolean(false)
+    private val _state = MutableStateFlow<ServiceState>(ServiceState.Disconnected)
 
-    private val serviceTag = UUID.randomUUID().toString()
-    private val serviceVersion = AtomicInteger(100)
+    private val connectors: Map<RemoteBackend, RemoteServiceConnectorBackend> = mapOf(
+        RemoteBackend.SHIZUKU to ShizukuRemoteServiceConnector,
+        RemoteBackend.ROOT to RootRemoteServiceConnector
+    )
 
-    /**
-     * 每次调用时生成新的 serviceArgs，确保参数始终是最新的
-     */
-    private fun createServiceArgs(): Shizuku.UserServiceArgs {
-        return Shizuku.UserServiceArgs(
-            ComponentName(BuildConfig.APPLICATION_ID, RemoteServiceImpl::class.java.name)
-        ).apply {
-            processNameSuffix("service")
-            daemon(false)
-            tag(serviceTag)
-            version(serviceVersion.incrementAndGet())
-            debuggable(BuildConfig.DEBUG)
+    private var boundBackend: RemoteBackend? = null
+
+    val state: StateFlow<ServiceState> = _state.asStateFlow()
+
+    private val connectorCallbacks = object : RemoteServiceConnectorBackend.Callbacks {
+        override fun onConnected(backend: RemoteBackend, binder: IBinder) {
+            if (boundBackend != backend) {
+                Timber.w("Ignoring stale %s connection", backend)
+                return
+            }
+            onBinderConnected(backend, binder)
+        }
+
+        override fun onDisconnected(backend: RemoteBackend) {
+            if (boundBackend != backend) {
+                return
+            }
+            if (unbindingIntentionally.get()) {
+                return
+            }
+            Timber.i("RemoteService disconnected: %s", backend)
+            handleDisconnect()
+        }
+
+        override fun onError(backend: RemoteBackend, throwable: Throwable) {
+            if (boundBackend != backend) {
+                return
+            }
+            Timber.e(throwable, "RemoteService connection failed: %s", backend)
+            clearCurrentBinder()
+            boundBackend = null
+            _state.value = ServiceState.Error(throwable)
         }
     }
 
-    private var currentServiceArgs: Shizuku.UserServiceArgs? = null
-
-    private val _state = MutableStateFlow<ServiceState>(ServiceState.Disconnected)
-    val state: StateFlow<ServiceState> = _state.asStateFlow()
-
-    private val currentBinder: AtomicReference<IBinder> = AtomicReference()
-
-    private val unbindingIntentionally = AtomicBoolean(false)
-
     private val deathRecipient = IBinder.DeathRecipient {
         Timber.w("RemoteService binder died")
-        // 检查是否是主动断开
         if (unbindingIntentionally.compareAndSet(true, false)) {
             handleDisconnect()
         } else {
@@ -67,91 +77,85 @@ object RemoteServiceManager {
         }
     }
 
-    private val connection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            Timber.i("RemoteService connected: %s", name)
-            currentBinder.set(binder)
-            binder?.linkToDeath(deathRecipient, 0)
-            _state.value = ServiceState.Connected(
-                RemoteService.Stub.asInterface(binder)
-            )
-        }
-
-        override fun onServiceDisconnected(name: ComponentName?) {
-            Timber.i("RemoteService disconnected: %s", name)
-            handleDisconnect()
-        }
+    fun initialize(context: Context, appSettings: AppSettingsManager) {
+        RemoteAccessCoordinator.initialize(appSettings)
+        RootRemoteServiceConnector.initialize(context)
     }
 
-    /** 服务进程异常死亡 */
+    private fun onBinderConnected(backend: RemoteBackend, binder: IBinder) {
+        clearCurrentBinder()
+        currentBinder.set(binder)
+        binder.linkToDeath(deathRecipient, 0)
+        boundBackend = backend
+        _state.value = ServiceState.Connected(RemoteService.Stub.asInterface(binder))
+    }
+
     private fun handleBinderDeath() {
-        runCatching {
-            currentBinder.get()?.unlinkToDeath(deathRecipient, 0)
-            currentBinder.set(null)
-        }.onFailure {
-            Timber.w(it, "unlinkToDeath failed")
-        }
+        clearCurrentBinder()
+        boundBackend = null
         _state.value = ServiceState.Died
     }
 
-    /** 正常断开连接 */
     private fun handleDisconnect() {
         if (_state.value == ServiceState.Died) {
             return
         }
-        runCatching {
-            currentBinder.get()?.unlinkToDeath(deathRecipient, 0)
-            currentBinder.set(null)
-        }.onFailure {
-            Timber.w(it, "unlinkToDeath failed")
-        }
+        clearCurrentBinder()
+        boundBackend = null
         _state.value = ServiceState.Disconnected
     }
 
+    private fun clearCurrentBinder() {
+        currentBinder.getAndSet(null)?.let { binder ->
+            runCatching {
+                binder.unlinkToDeath(deathRecipient, 0)
+            }.onFailure {
+                Timber.w(it, "unlinkToDeath failed")
+            }
+        }
+    }
+
     fun bind() {
-        if (_state.value is ServiceState.Connecting) {
+        val backend = RemoteAccessCoordinator.refresh().configuredBackend
+        if (!RemoteAccessCoordinator.isGranted(backend)) {
+            val exception = IllegalStateException("${backend.display} permission not granted")
+            Timber.w(exception)
+            boundBackend = null
+            _state.value = ServiceState.Error(exception)
             return
         }
 
-        // 如果已连接，先解绑旧服务
-        if (isConnected()) {
-            Timber.i("Unbinding old service before binding new one")
-            unbindInternal()
+        if (_state.value is ServiceState.Connecting && boundBackend == backend) {
+            return
         }
 
-        _state.value = ServiceState.Connecting
-        try {
-            // 生成新的 serviceArgs
-            val newArgs = createServiceArgs()
-            currentServiceArgs = newArgs
-            Timber.i("Binding service with new args: tag=${newArgs}")
-            Shizuku.bindUserService(newArgs, connection)
-        } catch (e: Exception) {
-            Timber.e(e, "bindUserService failed")
-            _state.value = ServiceState.Error(e)
+        if (boundBackend != null) {
+            Timber.i("Unbinding old service before binding new one")
+            unbindInternal()
+            handleDisconnect()
         }
+
+        boundBackend = backend
+        _state.value = ServiceState.Connecting
+        connectors.getValue(backend).connect(connectorCallbacks)
     }
 
     private fun unbindInternal() {
-        val args = currentServiceArgs ?: return
-        runCatching {
-            Shizuku.unbindUserService(args, connection, true)
-        }.onFailure {
-            Timber.w(it, "unbindUserService failed")
-        }
-        currentBinder.get()?.unlinkToDeath(deathRecipient, 0)
-        currentBinder.set(null)
-        currentServiceArgs = null
+        val backend = boundBackend ?: return
+        val binder = currentBinder.get()
+        connectors.getValue(backend).disconnect(binder)
+        clearCurrentBinder()
+        boundBackend = null
     }
 
     fun unbind() {
-        if (_state.value == ServiceState.Disconnected) {
+        if (_state.value == ServiceState.Disconnected && boundBackend == null) {
             return
         }
-        // 标记为主动断开，避免 deathRecipient 误判为异常死亡
         unbindingIntentionally.set(true)
         unbindInternal()
         handleDisconnect()
+        unbindingIntentionally.set(false)
     }
 
     suspend fun getInstance(timeoutMs: Long = 10_000): RemoteService {
@@ -160,11 +164,11 @@ object RemoteServiceManager {
         bind()
         return withTimeout(timeoutMs) {
             _state.first { it is ServiceState.Connected || it is ServiceState.Error }
-                .let { state ->
-                    when (state) {
-                        is ServiceState.Connected -> state.service
-                        is ServiceState.Error -> throw state.exception
-                        else -> error("Unexpected state: $state")
+                .let { currentState ->
+                    when (currentState) {
+                        is ServiceState.Connected -> currentState.service
+                        is ServiceState.Error -> throw currentState.exception
+                        else -> error("Unexpected state: $currentState")
                     }
                 }
         }
@@ -172,21 +176,31 @@ object RemoteServiceManager {
 
     fun getInstanceOrNull(): RemoteService? {
         val current = _state.value
-        if (current is ServiceState.Connected) {
-            return current.service
-        }
-        return null
+        return if (current is ServiceState.Connected) current.service else null
     }
 
-    fun isConnected(): Boolean = getInstanceOrNull() != null
 
-    suspend inline fun <R> useRemoteService(
+    suspend fun <R> useRemoteService(
         timeoutMs: Long = 5_000,
-        crossinline action: suspend (RemoteService) -> R
+        action: suspend (RemoteService) -> R
     ): R {
-        return requireShizukuPermissionGranted {
-            val service = getInstance(timeoutMs)
-            action(service)
+        var accessState = RemoteAccessCoordinator.refresh()
+        var backend = accessState.configuredBackend
+        if (!accessState.isGranted(backend)) {
+            val granted = RemoteAccessCoordinator.request(backend)
+            accessState = RemoteAccessCoordinator.refresh()
+            backend = accessState.configuredBackend
+            if (!granted || !accessState.isGranted(backend)) {
+                throw IllegalStateException("${backend.display} permission not granted")
+            }
         }
+
+        if (boundBackend != null && boundBackend != backend) {
+            Timber.i("Rebinding remote service from %s to %s", boundBackend, backend)
+            unbind()
+        }
+
+        val service = getInstance(timeoutMs)
+        return action(service)
     }
 }

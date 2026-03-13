@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aliothmoon.maameow.data.model.update.UpdateChannel
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.domain.models.RemoteBackend
+import com.aliothmoon.maameow.manager.PermissionManager
 import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.utils.Misc
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,6 +17,7 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(
     private val app: Application,
     private val appSettingsManager: AppSettingsManager,
+    private val permissionManager: PermissionManager,
 ) : ViewModel() {
 
     val debugMode: StateFlow<Boolean> = appSettingsManager.debugMode
@@ -39,6 +42,15 @@ class SettingsViewModel(
     fun setAutoCheckUpdate(enabled: Boolean) {
         viewModelScope.launch {
             appSettingsManager.setAutoCheckUpdate(enabled)
+        }
+    }
+
+    val startupBackend: StateFlow<RemoteBackend> = appSettingsManager.startupBackend
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), RemoteBackend.SHIZUKU)
+
+    fun setStartupBackend(backend: RemoteBackend) {
+        viewModelScope.launch {
+            permissionManager.setStartupBackend(backend)
         }
     }
 

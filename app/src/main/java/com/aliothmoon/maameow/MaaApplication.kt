@@ -7,11 +7,10 @@ import com.aliothmoon.maameow.koin.appModule
 import com.aliothmoon.maameow.koin.floatingWindowModule
 import com.aliothmoon.maameow.koin.useCaseModule
 import com.aliothmoon.maameow.koin.viewModelModule
+import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.overlay.OverlayController
 import com.aliothmoon.maameow.utils.CrashHandler
 import com.aliothmoon.maameow.utils.log.LogTreeHolder
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import org.koin.android.ext.android.inject
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
@@ -20,6 +19,7 @@ import org.koin.core.logger.Level
 
 class MaaApplication : Application() {
 
+    private val appSettingsManager: AppSettingsManager by inject()
     private val crashHandler: CrashHandler by inject()
     private val unifiedStateDispatcher: UnifiedStateDispatcher by inject()
     private val overlayController: OverlayController by inject()
@@ -38,6 +38,7 @@ class MaaApplication : Application() {
     }
 
     private fun postCreateApplication() {
+        RemoteServiceManager.initialize(this, appSettingsManager)
         treeHolder.setup()
         crashHandler.init(this)
         overlayController.setup()

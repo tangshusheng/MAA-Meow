@@ -119,7 +119,7 @@ fun BackgroundTaskView(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val maaState by compositionService.state.collectAsStateWithLifecycle()
     val permissions by permissionManager.state.collectAsStateWithLifecycle()
-    var isRequestingShizuku by remember { mutableStateOf(false) }
+    var isRequestingRemoteAccess by remember { mutableStateOf(false) }
     var showCloseConfirm by remember { mutableStateOf(false) }
 
     val nodes by viewModel.chainState.chain.collectAsStateWithLifecycle()
@@ -146,17 +146,23 @@ fun BackgroundTaskView(
     }
     val context = LocalContext.current
 
-    if (!permissions.shizuku) {
+    if (!permissions.remoteAccessGranted) {
         ShizukuPermissionDialog(
-            isRequesting = isRequestingShizuku,
+            title = "需要${permissions.startupBackend.display}权限",
+            message = "后台任务页面依赖${permissions.startupBackend.display}远程服务，授权成功前将持续显示该提示。",
+            isRequesting = isRequestingRemoteAccess,
             onConfirm = {
-                if (isRequestingShizuku) return@ShizukuPermissionDialog
+                if (isRequestingRemoteAccess) return@ShizukuPermissionDialog
                 coroutineScope.launch {
-                    isRequestingShizuku = true
-                    val granted = permissionManager.requestShizuku()
-                    isRequestingShizuku = false
+                    isRequestingRemoteAccess = true
+                    val granted = permissionManager.requestRemoteAccess()
+                    isRequestingRemoteAccess = false
                     if (!granted) {
-                        Toast.makeText(context, "Shizuku 权限未获取，请重试", Toast.LENGTH_SHORT)
+                        Toast.makeText(
+                            context,
+                            "${permissions.remotePermissionLabel}未获取，请重试",
+                            Toast.LENGTH_SHORT
+                        )
                             .show()
                     }
                 }

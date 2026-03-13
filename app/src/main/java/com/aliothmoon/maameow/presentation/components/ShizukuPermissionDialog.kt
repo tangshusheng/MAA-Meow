@@ -10,6 +10,8 @@ import androidx.compose.ui.window.DialogProperties
 
 @Composable
 fun ShizukuPermissionDialog(
+    title: String,
+    message: String,
     isRequesting: Boolean,
     onConfirm: () -> Unit,
 ) {
@@ -21,13 +23,13 @@ fun ShizukuPermissionDialog(
         ),
         title = {
             Text(
-                text = "需要 Shizuku 权限",
+                text = title,
                 style = MaterialTheme.typography.titleMedium,
             )
         },
         text = {
             Text(
-                text = "后台任务页面依赖 Shizuku 权限，授权成功前将持续显示该提示。",
+                text = message,
                 style = MaterialTheme.typography.bodyMedium,
             )
         },

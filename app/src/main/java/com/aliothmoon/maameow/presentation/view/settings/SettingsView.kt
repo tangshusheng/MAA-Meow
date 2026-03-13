@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.aliothmoon.maameow.BuildConfig
 import com.aliothmoon.maameow.data.model.update.UpdateChannel
+import com.aliothmoon.maameow.domain.models.RemoteBackend
 import com.aliothmoon.maameow.domain.service.LogExportService
 import com.aliothmoon.maameow.domain.service.ResourceInitService
 import com.aliothmoon.maameow.domain.state.ResourceInitState
@@ -68,6 +69,7 @@ fun SettingsView(
     val resourceInitState by resourceInitService.state.collectAsStateWithLifecycle()
     val debugMode by viewModel.debugMode.collectAsStateWithLifecycle()
     val autoCheckUpdate by viewModel.autoCheckUpdate.collectAsStateWithLifecycle()
+    val startupBackend by viewModel.startupBackend.collectAsStateWithLifecycle()
     val skipShizukuCheck by viewModel.skipShizukuCheck.collectAsStateWithLifecycle()
     val updateChannel by viewModel.updateChannel.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
@@ -249,11 +251,17 @@ fun SettingsView(
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
+                    SettingRemoteBackendItem(
+                        contentColor = color,
+                        selectedBackend = startupBackend,
+                        onBackendSelected = { viewModel.setStartupBackend(it) }
+                    )
+                    SettingsDivider(color)
                     SettingSwitchItem(
                         title = "跳过 Shizuku 检查",
-                        description = "启用后启动时不再弹出 Shizuku 安装/启动提示",
                         contentColor = color,
                         checked = skipShizukuCheck,
+                        enabled = startupBackend == RemoteBackend.SHIZUKU,
                         onCheckedChange = { viewModel.setSkipShizukuCheck(it) }
                     )
                 }
@@ -342,9 +350,10 @@ private fun SettingClickItem(
 @Composable
 private fun SettingSwitchItem(
     title: String,
-    description: String,
+    description: String? = null,
     contentColor: Color,
     checked: Boolean,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
@@ -357,15 +366,22 @@ private fun SettingSwitchItem(
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
-                color = contentColor
+                color = contentColor.copy(alpha = if (enabled) 1f else 0.6f)
             )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = contentColor.copy(alpha = 0.7f)
-            )
+            if (description != null) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor.copy(alpha = if (enabled) 0.7f else 0.4f)
+                )
+            }
+
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onCheckedChange
+        )
     }
 }
 
@@ -453,6 +469,51 @@ private fun SettingChannelItem(
                         color = contentColor
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingRemoteBackendItem(
+    contentColor: Color,
+    selectedBackend: RemoteBackend,
+    onBackendSelected: (RemoteBackend) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "启动模式",
+            style = MaterialTheme.typography.bodyLarge,
+            color = contentColor
+        )
+        RemoteBackend.entries.forEach { backend ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .selectable(
+                        selected = backend == selectedBackend,
+                        onClick = { onBackendSelected(backend) },
+                        role = Role.RadioButton
+                    )
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = backend == selectedBackend,
+                    onClick = null
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = backend.display,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = contentColor
+                )
             }
         }
     }

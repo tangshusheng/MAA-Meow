@@ -110,8 +110,14 @@ android {
 
     externalNativeBuild {
         cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
+            path = file("src/main/native/CMakeLists.txt")
             version = "3.22.1"
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
 }
@@ -152,6 +158,7 @@ dependencies {
     implementation(libs.fastjson2)
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
+    implementation(libs.libsu)
     implementation(libs.device.compat)
     implementation(libs.xx.permissions)
     implementation(libs.floatingx)
