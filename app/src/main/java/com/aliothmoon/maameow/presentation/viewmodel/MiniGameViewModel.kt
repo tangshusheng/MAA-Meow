@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.aliothmoon.maameow.data.model.activity.MiniGame
 import com.aliothmoon.maameow.data.resource.ActivityManager
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
-import com.aliothmoon.maameow.domain.state.MaaExecutionState
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.maa.task.MaaTaskType
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.putJsonArray
+import timber.log.Timber
 
 private const val SECRET_FRONT_VALUE = "MiniGame@SecretFront"
 private const val DEFAULT_TASK_NAME = "SS@Store@Begin"
@@ -37,11 +37,12 @@ class MiniGameViewModel(
 
     val miniGames: StateFlow<List<MiniGame>> = activityManager.miniGames
 
-    val isSecretFront: Boolean
-        get() = _state.value.selectedTaskName == SECRET_FRONT_VALUE
+    fun isSecretFront(selectedTaskName: String): Boolean =
+        selectedTaskName == SECRET_FRONT_VALUE
 
     fun onTaskSelected(value: String) {
         _state.update { it.copy(selectedTaskName = value) }
+        logCurrentSelection("onTaskSelected")
     }
 
     fun onEndingSelected(ending: String) {
@@ -52,15 +53,8 @@ class MiniGameViewModel(
         _state.update { it.copy(selectedEvent = event) }
     }
 
-    fun getCurrentTip(): String {
-        val game = miniGames.value.find { it.value == _state.value.selectedTaskName }
-        return game?.tip ?: game?.tipKey ?: ""
-    }
-
-    fun isCurrentUnsupported(): Boolean {
-        val game = miniGames.value.find { it.value == _state.value.selectedTaskName }
-        return game?.isUnsupported == true
-    }
+    fun findGame(selectedTaskName: String): MiniGame? =
+        miniGames.value.find { it.value == selectedTaskName }
 
     private fun buildTaskName(): String {
         val snapshot = _state.value
@@ -80,7 +74,7 @@ class MiniGameViewModel(
     }
 
     fun onStart() {
-        if (isCurrentUnsupported()) {
+        if (findGame(_state.value.selectedTaskName)?.isUnsupported == true) {
             _state.update { it.copy(statusMessage = "当前版本不支持此任务") }
             return
         }
@@ -124,10 +118,25 @@ class MiniGameViewModel(
         }
     }
 
+    private fun logCurrentSelection(source: String) {
+        val selectedTaskName = _state.value.selectedTaskName
+        val game = miniGames.value.find { it.value == selectedTaskName }
+        Timber.d(
+            "MiniGame[%s]: selectedTaskName=%s, matchedDisplay=%s, matchedValue=%s, tipKey=%s, tip=%s, listSize=%d",
+            source,
+            selectedTaskName,
+            game?.display,
+            game?.value,
+            game?.tipKey,
+            game?.tip?.replace("\n", "\\n"),
+            miniGames.value.size
+        )
+    }
+
     companion object {
         val ENDINGS = listOf("A", "B", "C", "D", "E")
         val EVENTS = listOf(
-            "" to "未选择",
+            "" to "不选择",
             "支援作战平台" to "支援作战平台",
             "游侠" to "游侠",
             "诡影迷踪" to "诡影迷踪",

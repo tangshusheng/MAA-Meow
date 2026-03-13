@@ -142,10 +142,23 @@ class ActivityManager(
                         value = entry.value,
                         utcStartTime = 0L,
                         utcExpireTime = Long.MAX_VALUE,
-                        tipKey = entry.tipKey
+                        tip = entry.tip
                     )
                 }
-        return parsedMiniGames + defaultMiniGames  // API 在前，默认在后
+        val miniGames = parsedMiniGames + defaultMiniGames  // API 在前，默认在后
+        miniGames.forEachIndexed { index, game ->
+            Timber.d(
+                "MiniGame[%d]: display=%s, value=%s, tipKey=%s, tip=%s, isOpen=%s, isUnsupported=%s",
+                index,
+                game.display,
+                game.value,
+                game.tipKey,
+                game.tip?.replace("\n", "\\n"),
+                game.isOpen,
+                game.isUnsupported
+            )
+        }
+        return miniGames
     }
 
     private fun doParseStageInfo(activity: ClientStageActivity): List<ActivityStage> {

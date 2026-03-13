@@ -1,6 +1,7 @@
 package com.aliothmoon.maameow.data.model.activity
 
 import com.aliothmoon.maameow.data.resource.MaaCoreVersion
+import com.aliothmoon.maameow.data.resource.MiniGameTextRegistry
 
 /**
  * 小游戏（UI 使用）
@@ -31,13 +32,8 @@ data class MiniGame(
          * 迁移自 WPF ParseMiniGameEntry + ParseMiniGameEntries
          */
         fun fromEntry(entry: MiniGameEntry): MiniGame {
-            // Display 解析链: Display → DisplayKey → Value → ""
-            val finalDisplay = when {
-                !entry.display.isNullOrEmpty() -> entry.display
-                !entry.displayKey.isNullOrEmpty() -> entry.displayKey
-                !entry.value.isNullOrEmpty() -> entry.value
-                else -> ""
-            }
+            val finalDisplay =
+                MiniGameTextRegistry.resolveDisplay(entry.display, entry.displayKey, entry.value)
             val finalValue = entry.value ?: finalDisplay
 
             val minReq = entry.minimumRequired
@@ -51,7 +47,13 @@ data class MiniGame(
                 tip = "版本过低\n最低要求: $minReq"
                 tipKey = null
             } else {
-                tip = entry.tip
+                tip = MiniGameTextRegistry.resolveTip(
+                    tip = entry.tip,
+                    tipKey = entry.tipKey,
+                    display = finalDisplay,
+                    displayKey = entry.displayKey,
+                    value = finalValue
+                )
                 tipKey = entry.tipKey
             }
 

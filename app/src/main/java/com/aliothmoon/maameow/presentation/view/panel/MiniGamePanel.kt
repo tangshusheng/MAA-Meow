@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.aliothmoon.maameow.data.resource.MiniGameTextRegistry
 import com.aliothmoon.maameow.presentation.viewmodel.MiniGameViewModel
 import org.koin.compose.koinInject
 
@@ -44,16 +44,14 @@ fun MiniGamePanel(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val miniGames by viewModel.miniGames.collectAsStateWithLifecycle()
 
-    val tip = viewModel.getCurrentTip()
-    val isUnsupported = viewModel.isCurrentUnsupported()
+    val currentGame = viewModel.findGame(state.selectedTaskName)
+    val tip = currentGame?.tip?.takeIf { it.isNotBlank() } ?: MiniGameTextRegistry.EMPTY_TIP
+    val isUnsupported = currentGame?.isUnsupported == true
+    val currentGameDisplay = currentGame?.display ?: ""
 
     val tabTitleTextStyle = MaterialTheme.typography.bodySmall.copy(
         fontSize = 13.sp,
         lineHeight = 16.sp
-    )
-    val tabSubtitleTextStyle = MaterialTheme.typography.labelSmall.copy(
-        fontSize = 10.5.sp,
-        lineHeight = 12.sp
     )
 
     LazyColumn(
@@ -74,19 +72,19 @@ fun MiniGamePanel(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    text = "选择任务",
+                    text = "小游戏名称",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                miniGames.chunked(2).forEach { rowGames ->
+                miniGames.chunked(3).forEach { rowGames ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         rowGames.forEach { game ->
                             val selected = state.selectedTaskName == game.value
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(6.dp),
                                 color = if (game.isUnsupported) {
                                     MaterialTheme.colorScheme.errorContainer
                                 } else if (selected) {
@@ -106,13 +104,13 @@ fun MiniGamePanel(
                                 ),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .heightIn(min = 48.dp)
+                                    .heightIn(min = 36.dp)
                                     .clickable { viewModel.onTaskSelected(game.value) }
                             ) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                        .padding(horizontal = 6.dp, vertical = 4.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
                                 ) {
@@ -132,25 +130,10 @@ fun MiniGamePanel(
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.fillMaxWidth(),
                                     )
-                                    if (!game.isOpen && game.utcStartTime != 0L) {
-                                        Spacer(modifier = Modifier.height(1.dp))
-                                        Text(
-                                            text = "未开放",
-                                            style = tabSubtitleTextStyle,
-                                            color = if (selected) {
-                                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                            } else {
-                                                MaterialTheme.colorScheme.outline
-                                            },
-                                            textAlign = TextAlign.Center,
-                                            maxLines = 1,
-                                            modifier = Modifier.fillMaxWidth(),
-                                        )
-                                    }
                                 }
                             }
                         }
-                        if (rowGames.size < 2) {
+                        repeat(3 - rowGames.size) {
                             Spacer(modifier = Modifier.weight(1f))
                         }
                     }
@@ -175,22 +158,36 @@ fun MiniGamePanel(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = tip,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (isUnsupported) {
-                            MaterialTheme.colorScheme.onErrorContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.padding(10.dp)
-                    )
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        if (currentGameDisplay.isNotBlank()) {
+                            Text(
+                                text = currentGameDisplay,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isUnsupported) {
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                        }
+                        Text(
+                            text = tip,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isUnsupported) {
+                                MaterialTheme.colorScheme.onErrorContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
                 }
             }
         }
 
         // 隐秘战线配置
-        if (viewModel.isSecretFront) {
+        if (viewModel.isSecretFront(state.selectedTaskName)) {
             item {
                 HorizontalDivider()
             }
@@ -232,57 +229,49 @@ fun MiniGamePanel(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = "事件",
+                        text = "优先系列事件",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    MiniGameViewModel.EVENTS.chunked(2).forEach { rowEvents ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            rowEvents.forEach { (value, display) ->
-                                val selected = state.selectedEvent == value
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        MiniGameViewModel.EVENTS.forEach { (value, display) ->
+                            val selected = state.selectedEvent == value
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surface
+                                },
+                                border = BorderStroke(
+                                    width = 1.dp,
                                     color = if (selected) {
-                                        MaterialTheme.colorScheme.primaryContainer
+                                        MaterialTheme.colorScheme.primary
                                     } else {
-                                        MaterialTheme.colorScheme.surface
+                                        MaterialTheme.colorScheme.outlineVariant
+                                    }
+                                ),
+                                modifier = Modifier
+                                    .clickable { viewModel.onEventSelected(value) }
+                            ) {
+                                Text(
+                                    text = display,
+                                    style = tabTitleTextStyle,
+                                    color = if (selected) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
                                     },
-                                    border = BorderStroke(
-                                        width = 1.dp,
-                                        color = if (selected) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.outlineVariant
-                                        }
-                                    ),
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier
-                                        .weight(1f)
-                                        .heightIn(min = 40.dp)
-                                        .clickable { viewModel.onEventSelected(value) }
-                                ) {
-                                    Text(
-                                        text = display,
-                                        style = tabTitleTextStyle,
-                                        color = if (selected) {
-                                            MaterialTheme.colorScheme.onPrimaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        },
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                        textAlign = TextAlign.Center,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                                    )
-                                }
-                            }
-                            if (rowEvents.size < 2) {
-                                Spacer(modifier = Modifier.weight(1f))
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                )
                             }
                         }
                     }
@@ -290,15 +279,5 @@ fun MiniGamePanel(
             }
         }
 
-        // 状态消息
-        if (state.statusMessage.isNotBlank()) {
-            item {
-                Text(
-                    text = state.statusMessage,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
     }
 }
