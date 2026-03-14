@@ -48,6 +48,7 @@ fun FloatWindowEditText(
     inputType: Int = InputType.TYPE_CLASS_TEXT,
     enabled: Boolean = true,
     minHeight: Dp = 44.dp,
+    shape: RoundedCornerShape = RoundedCornerShape(8.dp),
     textColor: Color = MaterialTheme.colorScheme.onSurface,
     hintColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     labelColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -64,7 +65,6 @@ fun FloatWindowEditText(
     val hintColorInt = remember(hintColor) { hintColor.toArgb() }
 
     val paddingPx = remember(density) { with(density) { 12.dp.roundToPx() } }
-    val cornerRadius = 8.dp
 
     var editTextRef by remember { mutableStateOf<ExtractModeEditText?>(null) }
     var isFocused by remember { mutableStateOf(false) }
@@ -97,12 +97,12 @@ fun FloatWindowEditText(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(cornerRadius))
+                .clip(shape)
                 .background(backgroundColor)
                 .border(
                     width = if (isFocused) 2.dp else 1.dp,
                     color = if (isFocused) focusedOutlineColor else outlineColor,
-                    shape = RoundedCornerShape(cornerRadius)
+                    shape = shape
                 )
         ) {
             AndroidView(

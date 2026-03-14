@@ -7,5 +7,7 @@ data class BackgroundTaskState(
     val selectedNodeId: String? = null,
     val currentTab: PanelTab = PanelTab.TASKS,
     val isFullscreenMonitor: Boolean = false,
+    val isEditMode: Boolean = false,
+    val isAddingTask: Boolean = false,
     val dialog: PanelDialogUiState? = null,
 )

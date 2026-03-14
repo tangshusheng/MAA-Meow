@@ -132,24 +132,29 @@ fun ExpandedControlPanel(
                                 TaskListPanel(
                                     nodes = nodes,
                                     selectedNodeId = uiState.selectedNodeId,
+                                    isEditMode = uiState.isEditMode,
+                                    isAddingTask = uiState.isAddingTask,
                                     onNodeEnabledChange = viewModel::onNodeEnabledChange,
                                     onNodeSelected = viewModel::onNodeSelected,
                                     onNodeMove = viewModel::onNodeMove,
-                                    onAddNode = viewModel::onAddNode,
-                                    onRemoveNode = viewModel::onRemoveNode,
-                                    onRenameNode = viewModel::onRenameNode,
+                                    onToggleEditMode = viewModel::onToggleEditMode,
+                                    onToggleAddingTask = viewModel::onToggleAddingTask,
                                     modifier = Modifier
-                                        .fillMaxHeight(),
-                                    showEditButton = false,
+                                        .fillMaxHeight()
                                 )
 
                                 // 右侧配置区域
                                 TaskConfigPanel(
                                     selectedNode = selectedNode,
+                                    isEditMode = uiState.isEditMode,
+                                    isAddingTask = uiState.isAddingTask,
                                     onConfigChange = { config ->
                                         val nodeId = selectedNode?.id ?: return@TaskConfigPanel
                                         viewModel.onNodeConfigChange(nodeId, config)
                                     },
+                                    onAddNode = viewModel::onAddNode,
+                                    onRemoveNode = viewModel::onRemoveNode,
+                                    onRenameNode = viewModel::onRenameNode,
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxHeight()

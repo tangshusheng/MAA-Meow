@@ -4,6 +4,7 @@ import android.text.InputType
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -17,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
 import com.aliothmoon.maameow.presentation.LocalFloatingWindowContext
 
 
@@ -66,6 +68,7 @@ fun ITextField(
     placeholder: String = "",
     singleLine: Boolean = true,
     enabled: Boolean = true,
+    shape: RoundedCornerShape = RoundedCornerShape(8.dp),
     supportingText: @Composable (() -> Unit)? = null,
     outlineColor: Color? = null,
     onImeAction: (() -> Unit)? = null
@@ -83,6 +86,7 @@ fun ITextField(
             hint = placeholder,
             singleLine = singleLine,
             enabled = enabled,
+            shape = shape,
             outlineColor = outlineColor ?: MaterialTheme.colorScheme.outline,
             onImeAction = onImeAction,
             inputType = if (singleLine) InputType.TYPE_CLASS_TEXT else
@@ -98,6 +102,7 @@ fun ITextField(
             placeholder = { Text(placeholder) },
             singleLine = singleLine,
             enabled = enabled,
+            shape = shape,
             supportingText = supportingText,
             colors = if (outlineColor != null) {
                 OutlinedTextFieldDefaults.colors(

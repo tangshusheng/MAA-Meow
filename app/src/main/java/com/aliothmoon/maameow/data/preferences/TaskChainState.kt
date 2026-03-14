@@ -55,7 +55,8 @@ class TaskChainState(private val context: Context) {
     }
 
 
-    suspend fun addNode(typeInfo: TaskTypeInfo, afterIndex: Int = -1) {
+    suspend fun addNode(typeInfo: TaskTypeInfo, afterIndex: Int = -1): String {
+        var newNodeId = ""
         updateChain { current ->
             val node = TaskChainNode(
                 id = UUID.randomUUID().toString(),
@@ -63,6 +64,7 @@ class TaskChainState(private val context: Context) {
                 enabled = true,
                 config = typeInfo.defaultConfig()
             )
+            newNodeId = node.id
             if (afterIndex < 0 || afterIndex >= current.size) {
                 current.add(node)
             } else {
@@ -70,6 +72,7 @@ class TaskChainState(private val context: Context) {
             }
             Timber.d("Added node: %s (%s)", node.name, typeInfo.name)
         }
+        return newNodeId
     }
 
     suspend fun removeNode(nodeId: String) {

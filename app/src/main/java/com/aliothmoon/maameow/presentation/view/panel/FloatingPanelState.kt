@@ -17,6 +17,8 @@ data class FloatingPanelState(
     val isExpanded: Boolean = false,
     val currentTab: PanelTab = PanelTab.TASKS,
     val selectedNodeId: String? = null,
+    val isEditMode: Boolean = false,
+    val isAddingTask: Boolean = false,
     val dialog: PanelDialogUiState? = null
 )
 

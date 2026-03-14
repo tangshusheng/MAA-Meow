@@ -107,12 +107,23 @@ class BackgroundTaskViewModel(
     }
 
     fun onNodeSelected(nodeId: String) {
-        _state.update { it.copy(selectedNodeId = nodeId) }
+        _state.update { it.copy(selectedNodeId = nodeId, isAddingTask = false) }
+    }
+
+    fun onToggleEditMode() {
+        _state.update { it.copy(isEditMode = !it.isEditMode, isAddingTask = false) }
+        Timber.d("Edit mode toggled: %s", _state.value.isEditMode)
+    }
+
+    fun onToggleAddingTask() {
+        _state.update { it.copy(isAddingTask = !it.isAddingTask, selectedNodeId = null) }
+        Timber.d("Adding task mode toggled: %s", _state.value.isAddingTask)
     }
 
     fun onAddNode(typeInfo: TaskTypeInfo) {
         viewModelScope.launch {
-            chainState.addNode(typeInfo)
+            val nodeId = chainState.addNode(typeInfo)
+            _state.update { it.copy(isAddingTask = false, selectedNodeId = nodeId) }
         }
     }
 

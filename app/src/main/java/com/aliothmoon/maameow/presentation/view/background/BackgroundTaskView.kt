@@ -333,6 +333,8 @@ fun BackgroundTaskView(
                                 TaskListPanel(
                                     nodes = nodes,
                                     selectedNodeId = state.selectedNodeId,
+                                    isEditMode = state.isEditMode,
+                                    isAddingTask = state.isAddingTask,
                                     onNodeEnabledChange = { nodeId, enabled ->
                                         viewModel.onNodeEnabledChange(nodeId, enabled)
                                     },
@@ -342,17 +344,9 @@ fun BackgroundTaskView(
                                     onNodeMove = { fromIndex, toIndex ->
                                         viewModel.onNodeMove(fromIndex, toIndex)
                                     },
-                                    onAddNode = { typeInfo ->
-                                        viewModel.onAddNode(typeInfo)
-                                    },
-                                    onRemoveNode = { nodeId ->
-                                        viewModel.onRemoveNode(nodeId)
-                                    },
-                                    onRenameNode = { nodeId, newName ->
-                                        viewModel.onRenameNode(nodeId, newName)
-                                    },
+                                    onToggleEditMode = { viewModel.onToggleEditMode() },
+                                    onToggleAddingTask = { viewModel.onToggleAddingTask() },
                                     modifier = Modifier.fillMaxHeight(),
-                                    showEditButton = true,
                                 )
 
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -368,11 +362,17 @@ fun BackgroundTaskView(
                                     Column(modifier = Modifier.padding(top = 10.dp)) {
                                         TaskConfigPanel(
                                             selectedNode = selectedNode,
+                                            isEditMode = state.isEditMode,
+                                            isAddingTask = state.isAddingTask,
                                             onConfigChange = { config ->
                                                 val nodeId =
                                                     selectedNode?.id ?: return@TaskConfigPanel
                                                 viewModel.onNodeConfigChange(nodeId, config)
-                                            })
+                                            },
+                                            onAddNode = { viewModel.onAddNode(it) },
+                                            onRemoveNode = { viewModel.onRemoveNode(it) },
+                                            onRenameNode = { id, name -> viewModel.onRenameNode(id, name) }
+                                        )
                                     }
                                 }
                             }
