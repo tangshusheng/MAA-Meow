@@ -139,11 +139,11 @@ fun AutoBattlePanel(
             )
         )
     }
-    val selectedTabSpec = tabSpecs.firstOrNull { it.index == state.tabIndex } ?: tabSpecs.first()
-    val regularCopilotTab = selectedTabSpec.supportsRegularOptions
-    val loopCountSupportedTab = selectedTabSpec.index == 1
-    val battleListSupportedTab = selectedTabSpec.supportsBattleList
-    val setImportSupported = selectedTabSpec.supportsSetImport
+    val current = tabSpecs.firstOrNull { it.index == state.tabIndex } ?: tabSpecs.first()
+    val regularCopilotTab = current.supportsRegularOptions
+    val loopCountSupportedTab = current.index == 1 || current.index == 3
+    val battleListSupportedTab = current.supportsBattleList
+    val setImportSupported = current.supportsSetImport
 
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -153,363 +153,388 @@ fun AutoBattlePanel(
                 .padding(PaddingValues(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 4.dp)),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                tabSpecs.chunked(2).forEach { rowSpecs ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        rowSpecs.forEach { spec ->
-                            val selected = state.tabIndex == spec.index
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (selected) {
-                                    MaterialTheme.colorScheme.primaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.surface
-                                },
-                                border = BorderStroke(
-                                    width = 1.dp,
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    tabSpecs.chunked(2).forEach { rowSpecs ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            rowSpecs.forEach { spec ->
+                                val selected = state.tabIndex == spec.index
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
                                     color = if (selected) {
-                                        MaterialTheme.colorScheme.primary
+                                        MaterialTheme.colorScheme.primaryContainer
                                     } else {
-                                        MaterialTheme.colorScheme.outlineVariant
-                                    }
-                                ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .heightIn(min = 56.dp)
-                                    .clickable { viewModel.onTabChanged(spec.index) }
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Text(
-                                        text = spec.title,
-                                        style = tabTitleTextStyle,
+                                        MaterialTheme.colorScheme.surface
+                                    },
+                                    border = BorderStroke(
+                                        width = 1.dp,
                                         color = if (selected) {
-                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                            MaterialTheme.colorScheme.primary
                                         } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        },
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                        textAlign = TextAlign.Center,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    spec.subtitle?.let { subtitle ->
-                                        Spacer(modifier = Modifier.height(1.dp))
+                                            MaterialTheme.colorScheme.outlineVariant
+                                        }
+                                    ),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .heightIn(min = 56.dp)
+                                        .clickable { viewModel.onTabChanged(spec.index) }
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
                                         Text(
-                                            text = subtitle,
-                                            style = tabSubtitleTextStyle,
+                                            text = spec.title,
+                                            style = tabTitleTextStyle,
                                             color = if (selected) {
-                                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                                MaterialTheme.colorScheme.onPrimaryContainer
                                             } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                                MaterialTheme.colorScheme.onSurface
                                             },
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                             textAlign = TextAlign.Center,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
                                             modifier = Modifier.fillMaxWidth(),
                                         )
+                                        spec.subtitle?.let { subtitle ->
+                                            Spacer(modifier = Modifier.height(1.dp))
+                                            Text(
+                                                text = subtitle,
+                                                style = tabSubtitleTextStyle,
+                                                color = if (selected) {
+                                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                                        alpha = 0.8f
+                                                    )
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                                },
+                                                textAlign = TextAlign.Center,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        }
-                        if (rowSpecs.size < 2) {
-                            Spacer(modifier = Modifier.weight(1f))
+                            if (rowSpecs.size < 2) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
                         }
                     }
+                    HorizontalDivider()
                 }
-                HorizontalDivider()
             }
-        }
 
-        item {
-            ITextField(
-                value = state.inputText,
-                onValueChange = viewModel::onInputChanged,
-                label = "作业站神秘代码",
-                placeholder = "输入 maa://1234、1234",
-            )
-        }
+            item {
+                ITextField(
+                    value = state.inputText,
+                    onValueChange = viewModel::onInputChanged,
+                    label = "作业站神秘代码",
+                    placeholder = "输入 maa://1234、1234",
+                )
+            }
 
-        item {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(6.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant
-            ) {
-                Row(
-                    modifier = Modifier.padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
-                    if (state.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (state.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
+                        Text(
+                            text = state.statusMessage.ifBlank { "等待操作..." },
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f)
                         )
                     }
-                    Text(
-                        text = state.statusMessage.ifBlank { "等待操作..." },
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.weight(1f)
-                    )
                 }
             }
-        }
 
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = viewModel::onParseSingleInput,
-                    enabled = !state.isLoading && !isStarting,
-                    shape = compactButtonShape,
-                    contentPadding = compactButtonPadding
-                ) {
-                    Text(if (state.isLoading) "读取中..." else "读取作业")
-                }
-                Button(
-                    onClick = viewModel::onParseSetInput,
-                    enabled = !state.isLoading && !isStarting && setImportSupported,
-                    shape = compactButtonShape,
-                    contentPadding = compactButtonPadding
-                ) {
-                    Text("读取作业集")
-                }
-                OutlinedButton(
-                    onClick = { Misc.openUriSafely(context, "https://zoot.plus") },
-                    shape = compactButtonShape,
-                    contentPadding = compactButtonPadding
-                ) {
-                    Text("作业站")
-                }
-            }
-        }
-
-        // 作业详情 + 视频链接
-        if (state.currentCopilot != null) {
-            val doc = state.currentCopilot!!.doc
-            val hasDetail = doc.title.isNotBlank() || doc.details.isNotBlank() || state.operatorSummary?.isEmpty == false
-            val hasVideo = state.videoUrl.isNotBlank()
-            if (hasDetail || hasVideo) {
-                item {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = viewModel::onParseSingleInput,
+                        enabled = !state.isLoading && !isStarting,
+                        shape = compactButtonShape,
+                        contentPadding = compactButtonPadding
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        Text(if (state.isLoading) "读取中..." else "读取作业")
+                    }
+                    Button(
+                        onClick = viewModel::onParseSetInput,
+                        enabled = !state.isLoading && !isStarting && setImportSupported,
+                        shape = compactButtonShape,
+                        contentPadding = compactButtonPadding
+                    ) {
+                        Text("读取作业集")
+                    }
+                    OutlinedButton(
+                        onClick = { Misc.openUriSafely(context, "https://zoot.plus") },
+                        shape = compactButtonShape,
+                        contentPadding = compactButtonPadding
+                    ) {
+                        Text("作业站")
+                    }
+                }
+            }
+
+            // 作业详情 + 视频链接
+            if (state.currentCopilot != null) {
+                val doc = state.currentCopilot!!.doc
+                val hasDetail =
+                    doc.title.isNotBlank() || doc.details.isNotBlank() || state.operatorSummary?.isEmpty == false
+                val hasVideo = state.videoUrl.isNotBlank()
+                if (hasDetail || hasVideo) {
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer
                         ) {
-                            SelectionContainer {
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    if (doc.title.isNotBlank()) {
-                                        Text(
-                                            text = doc.title,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                                        )
-                                    }
-                                    if (doc.details.isNotBlank()) {
-                                        Text(
-                                            text = doc.details,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                                        )
-                                    }
-                                }
-                            }
-                            val summary = state.operatorSummary
-                            if (summary != null && !summary.isEmpty) {
-                                if (doc.title.isNotBlank() || doc.details.isNotBlank()) {
-                                    HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.2f)
-                                    )
-                                }
-                                val textMeasurer = rememberTextMeasurer()
-                                val labelStyle = MaterialTheme.typography.labelSmall
-                                val density = LocalDensity.current
-                                val nameColumnWidth = remember(summary) {
-                                    val allNames = summary.operators.map { it.name } +
-                                            summary.groups.flatMap { (_, opers) -> opers.map { it.name } }
-                                    val maxTextWidth = allNames.maxOfOrNull { name ->
-                                        textMeasurer.measure(name, labelStyle).size.width
-                                    } ?: 0
-                                    maxTextWidth + with(density) { 8.dp.roundToPx() }
-                                }
-                                val nameWidth = remember(nameColumnWidth) {
-                                    with(density) { nameColumnWidth.toDp() }
-                                }
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    // 独立干员
-                                    if (summary.operators.isNotEmpty()) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                SelectionContainer {
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        if (doc.title.isNotBlank()) {
                                             Text(
-                                                text = "干员",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold,
+                                                text = doc.title,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Medium,
                                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                                             )
-                                            summary.operators.forEach { oper ->
-                                                OperatorRow(oper, nameWidth = nameWidth)
-                                            }
                                         }
-                                    }
-                                    // 备选组
-                                    summary.groups.forEach { (groupName, opers) ->
-                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        if (doc.details.isNotBlank()) {
                                             Text(
-                                                text = "干员组: $groupName",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold,
+                                                text = doc.details,
+                                                style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                                             )
-                                            opers.forEach { oper ->
-                                                OperatorRow(oper, nameWidth = nameWidth)
-                                            }
                                         }
                                     }
-                                    // 统计
+                                }
+                                val summary = state.operatorSummary
+                                if (summary != null && !summary.isEmpty) {
+                                    if (doc.title.isNotBlank() || doc.details.isNotBlank()) {
+                                        HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(
+                                                alpha = 0.2f
+                                            )
+                                        )
+                                    }
+                                    val textMeasurer = rememberTextMeasurer()
+                                    val labelStyle = MaterialTheme.typography.labelSmall
+                                    val density = LocalDensity.current
+                                    val nameColumnWidth = remember(summary) {
+                                        val allNames = summary.operators.map { it.name } +
+                                                summary.groups.flatMap { (_, opers) -> opers.map { it.name } }
+                                        val maxTextWidth = allNames.maxOfOrNull { name ->
+                                            textMeasurer.measure(name, labelStyle).size.width
+                                        } ?: 0
+                                        maxTextWidth + with(density) { 8.dp.roundToPx() }
+                                    }
+                                    val nameWidth = remember(nameColumnWidth) {
+                                        with(density) { nameColumnWidth.toDp() }
+                                    }
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        // 独立干员
+                                        if (summary.operators.isNotEmpty()) {
+                                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Text(
+                                                    text = "干员",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                                )
+                                                summary.operators.forEach { oper ->
+                                                    OperatorRow(oper, nameWidth = nameWidth)
+                                                }
+                                            }
+                                        }
+                                        // 备选组
+                                        summary.groups.forEach { (groupName, opers) ->
+                                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Text(
+                                                    text = "干员组: $groupName",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                                )
+                                                opers.forEach { oper ->
+                                                    OperatorRow(oper, nameWidth = nameWidth)
+                                                }
+                                            }
+                                        }
+                                        // 统计
+                                        Text(
+                                            text = "共 ${summary.totalCount} 名干员/组",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(
+                                                alpha = 0.6f
+                                            )
+                                        )
+                                    }
+                                }
+                                if (hasVideo) {
                                     Text(
-                                        text = "共 ${summary.totalCount} 名干员/组",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                                        text = "视频",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.clickable {
+                                            Misc.openUriSafely(
+                                                context,
+                                                state.videoUrl
+                                            )
+                                        }
                                     )
                                 }
-                            }
-                            if (hasVideo) {
-                                Text(
-                                    text = "视频",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.clickable { Misc.openUriSafely(context, state.videoUrl) }
-                                )
                             }
                         }
                     }
                 }
             }
-        }
 
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (regularCopilotTab) {
-                    CheckBoxWithExpandableTip(
-                        checked = state.config.formation,
-                        onCheckedChange = {
-                            viewModel.onConfigChanged(state.config.copy(formation = it))
-                        },
-                        label = "自动编队",
-                        tipText = "自动编队可能无法识别带有 ｢特别关注｣ 标记的干员"
-                    )
-                }
-                if (regularCopilotTab && state.config.formation) {
-                    CheckBoxWithLabel(
-                        checked = state.config.useFormation,
-                        onCheckedChange = { enabled ->
-                            viewModel.onConfigChanged(
-                                state.config.copy(
-                                    useFormation = enabled,
-                                    formationIndex = state.config.formationIndex.coerceIn(1, 4)
-                                )
-                            )
-                        },
-                        label = "使用编队"
-                    )
-
-                    if (state.config.useFormation) {
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(1, 2, 3, 4).forEach { index ->
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.clickable {
-                                        viewModel.onConfigChanged(
-                                            state.config.copy(
-                                                formationIndex = index
+            if (regularCopilotTab) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CheckBoxWithExpandableTip(
+                            checked = state.config.formation,
+                            onCheckedChange = {
+                                viewModel.onConfigChanged(state.config.copy(formation = it))
+                            },
+                            label = "自动编队",
+                            tipText = "自动编队可能无法识别带有 ｢特别关注｣ 标记的干员"
+                        )
+                        if (state.config.formation) {
+                            CheckBoxWithLabel(
+                                checked = state.config.useFormation,
+                                onCheckedChange = { enabled ->
+                                    viewModel.onConfigChanged(
+                                        state.config.copy(
+                                            useFormation = enabled,
+                                            formationIndex = state.config.formationIndex.coerceIn(
+                                                1,
+                                                4
                                             )
                                         )
-                                    }
-                                ) {
-                                    RadioButton(
-                                        selected = state.config.formationIndex == index,
-                                        onClick = {
-                                            viewModel.onConfigChanged(
-                                                state.config.copy(
-                                                    formationIndex = index
-                                                )
-                                            )
-                                        }
                                     )
-                                    Text(index.toString())
+                                },
+                                label = "使用编队"
+                            )
+
+                            if (state.config.useFormation) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    listOf(1, 2, 3, 4).forEach { index ->
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.clickable {
+                                                viewModel.onConfigChanged(
+                                                    state.config.copy(
+                                                        formationIndex = index
+                                                    )
+                                                )
+                                            }
+                                        ) {
+                                            RadioButton(
+                                                selected = state.config.formationIndex == index,
+                                                onClick = {
+                                                    viewModel.onConfigChanged(
+                                                        state.config.copy(
+                                                            formationIndex = index
+                                                        )
+                                                    )
+                                                }
+                                            )
+                                            Text(index.toString())
+                                        }
+                                    }
                                 }
                             }
-                        }
-                    }
 
-                    CheckBoxWithExpandableTip(
-                        checked = state.config.ignoreRequirements,
-                        onCheckedChange = {
-                            viewModel.onConfigChanged(state.config.copy(ignoreRequirements = it))
-                        },
-                        label = "忽略干员属性要求",
-                        tipText = "某些作业需要特定模组等作为前置条件\n勾选此项将跳过这些检查，但可能导致作业无法正常运行"
-                    )
+                            CheckBoxWithExpandableTip(
+                                checked = state.config.ignoreRequirements,
+                                onCheckedChange = {
+                                    viewModel.onConfigChanged(state.config.copy(ignoreRequirements = it))
+                                },
+                                label = "忽略干员属性要求",
+                                tipText = "某些作业需要特定模组等作为前置条件\n勾选此项将跳过这些检查，但可能导致作业无法正常运行"
+                            )
 
-                    CheckBoxWithExpandableTip(
-                        checked = state.config.useSupportUnit,
-                        onCheckedChange = {
-                            viewModel.onConfigChanged(state.config.copy(useSupportUnit = it))
-                        },
-                        label = "借助战",
-                        tipText = "缺一个还能用用，缺两个以上还是换份作业吧"
-                    )
+                            CheckBoxWithExpandableTip(
+                                checked = state.config.useSupportUnit,
+                                onCheckedChange = {
+                                    viewModel.onConfigChanged(state.config.copy(useSupportUnit = it))
+                                },
+                                label = "借助战",
+                                tipText = "缺一个还能用用，缺两个以上还是换份作业吧"
+                            )
 
-                    if (state.config.useSupportUnit) {
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(1 to "补漏", 3 to "随机").forEach { (value, label) ->
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.clickable {
-                                        viewModel.onConfigChanged(state.config.copy(supportUnitUsage = value))
-                                    }
-                                ) {
-                                    RadioButton(
-                                        selected = state.config.supportUnitUsage == value,
-                                        onClick = {
-                                            viewModel.onConfigChanged(
-                                                state.config.copy(
-                                                    supportUnitUsage = value
+                            if (state.config.useSupportUnit) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    listOf(1 to "补漏", 3 to "随机").forEach { (value, label) ->
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.clickable {
+                                                viewModel.onConfigChanged(
+                                                    state.config.copy(
+                                                        supportUnitUsage = value
+                                                    )
                                                 )
+                                            }
+                                        ) {
+                                            RadioButton(
+                                                selected = state.config.supportUnitUsage == value,
+                                                onClick = {
+                                                    viewModel.onConfigChanged(
+                                                        state.config.copy(
+                                                            supportUnitUsage = value
+                                                        )
+                                                    )
+                                                }
                                             )
+                                            Text(label)
                                         }
-                                    )
-                                    Text(label)
+                                    }
                                 }
                             }
+
+                            CheckBoxWithLabel(
+                                checked = state.config.addTrust,
+                                onCheckedChange = {
+                                    viewModel.onConfigChanged(
+                                        state.config.copy(
+                                            addTrust = it
+                                        )
+                                    )
+                                },
+                                label = "补充低信赖干员"
+                            )
                         }
                     }
-
-                    CheckBoxWithLabel(
-                        checked = state.config.addTrust,
-                        onCheckedChange = { viewModel.onConfigChanged(state.config.copy(addTrust = it)) },
-                        label = "补充低信赖干员"
-                    )
                 }
             }
-        }
 
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -570,101 +595,111 @@ fun AutoBattlePanel(
                     }
                 }
             }
-        
 
-        item {
-            if (state.useCopilotList && battleListSupportedTab) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        "战斗列表",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    var sequenceTipExpanded by remember { mutableStateOf(false) }
-                    ExpandableTipIcon(
-                        expanded = sequenceTipExpanded,
-                        onExpandedChange = { sequenceTipExpanded = it })
-                    ExpandableTipContent(
-                        visible = sequenceTipExpanded,
-                        tipText = "标签顺序可拖动"
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 300.dp)
-                ) {
-                    if (state.taskList.isEmpty()) {
+
+            item {
+                if (state.useCopilotList && battleListSupportedTab) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Text(
-                            "暂无条目",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(8.dp)
+                            "战斗列表",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
                         )
-                    } else {
-                        val lazyListState = rememberLazyListState()
-                        val reorderableState = rememberReorderableLazyListState(
-                            lazyListState = lazyListState,
-                            onMove = { from, to ->
-                                viewModel.onReorderList(from.index, to.index)
-                            }
+                        var sequenceTipExpanded by remember { mutableStateOf(false) }
+                        ExpandableTipIcon(
+                            expanded = sequenceTipExpanded,
+                            onExpandedChange = { sequenceTipExpanded = it })
+                        ExpandableTipContent(
+                            visible = sequenceTipExpanded,
+                            tipText = "标签顺序可拖动"
                         )
-                        LazyColumn(
-                            state = lazyListState,
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            itemsIndexed(
-                                state.taskList,
-                                key = { index, item -> "${item.filePath}-${item.name}-$index" }
-                            ) { index, item ->
-                                ReorderableItem(
-                                    reorderableState,
-                                    key = "${item.filePath}-${item.name}-$index"
-                                ) { isDragging ->
-                                    Surface(
-                                        tonalElevation = if (isDragging) 4.dp else 0.dp,
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = MaterialTheme.colorScheme.surface,
-                                        modifier = Modifier
-                                            .longPressDraggableHandle()
-                                            .fillMaxWidth()
-                                    ) {
-                                        Row(
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp)
+                    ) {
+                        if (state.taskList.isEmpty()) {
+                            Text(
+                                "暂无条目",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        } else {
+                            val lazyListState = rememberLazyListState()
+                            val reorderableState = rememberReorderableLazyListState(
+                                lazyListState = lazyListState,
+                                onMove = { from, to ->
+                                    viewModel.onReorderList(from.index, to.index)
+                                }
+                            )
+                            LazyColumn(
+                                state = lazyListState,
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                itemsIndexed(
+                                    state.taskList,
+                                    key = { index, item -> "${item.filePath}-${item.name}-$index" }
+                                ) { index, item ->
+                                    ReorderableItem(
+                                        reorderableState,
+                                        key = "${item.filePath}-${item.name}-$index"
+                                    ) { isDragging ->
+                                        Surface(
+                                            tonalElevation = if (isDragging) 4.dp else 0.dp,
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = MaterialTheme.colorScheme.surface,
                                             modifier = Modifier
+                                                .longPressDraggableHandle()
                                                 .fillMaxWidth()
-                                                .padding(start = 8.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            CheckBoxWithLabel(
-                                                checked = item.isChecked,
-                                                onCheckedChange = { viewModel.onToggleListItem(index) },
-                                                label = item.name + if (item.isRaid) " (突袭)" else "",
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                            OutlinedButton(
-                                                onClick = { viewModel.onSelectListItem(index) },
-                                                shape = compactButtonShape,
-                                                contentPadding = compactButtonPadding
-                                            ) { Text("加载") }
-                                            IconButton(
-                                                onClick = { viewModel.onRemoveFromList(index) },
-                                                modifier = Modifier.size(32.dp)
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(
+                                                        start = 8.dp,
+                                                        end = 4.dp,
+                                                        top = 2.dp,
+                                                        bottom = 2.dp
+                                                    ),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
-                                                Icon(
-                                                    Icons.Default.Delete,
-                                                    contentDescription = "删除",
-                                                    tint = MaterialTheme.colorScheme.error,
-                                                    modifier = Modifier.size(18.dp)
+                                                CheckBoxWithLabel(
+                                                    checked = item.isChecked,
+                                                    onCheckedChange = {
+                                                        viewModel.onToggleListItem(
+                                                            index
+                                                        )
+                                                    },
+                                                    label = item.name + if (item.isRaid) " (突袭)" else "",
+                                                    modifier = Modifier.weight(1f)
                                                 )
+                                                OutlinedButton(
+                                                    onClick = { viewModel.onSelectListItem(index) },
+                                                    shape = compactButtonShape,
+                                                    contentPadding = compactButtonPadding
+                                                ) { Text("加载") }
+                                                IconButton(
+                                                    onClick = { viewModel.onRemoveFromList(index) },
+                                                    modifier = Modifier.size(32.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Delete,
+                                                        contentDescription = "删除",
+                                                        tint = MaterialTheme.colorScheme.error,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -672,18 +707,25 @@ fun AutoBattlePanel(
                             }
                         }
                     }
-                }
-                // TODO: 恢复手动输入关卡名 + 添加普通/添加突袭功能
-                Spacer(modifier = Modifier.height(6.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(onClick = viewModel::onCleanUnchecked, shape = compactButtonShape, contentPadding = compactButtonPadding) { Text("清除未勾选") }
-                    OutlinedButton(onClick = viewModel::onClearList, shape = compactButtonShape, contentPadding = compactButtonPadding) { Text("清空列表") }
+                    // TODO: 恢复手动输入关卡名 + 添加普通/添加突袭功能
+                    Spacer(modifier = Modifier.height(6.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = viewModel::onCleanUnchecked,
+                            shape = compactButtonShape,
+                            contentPadding = compactButtonPadding
+                        ) { Text("清除未勾选") }
+                        OutlinedButton(
+                            onClick = viewModel::onClearList,
+                            shape = compactButtonShape,
+                            contentPadding = compactButtonPadding
+                        ) { Text("清空列表") }
+                    }
                 }
             }
-        }
 
 
 
@@ -692,7 +734,11 @@ fun AutoBattlePanel(
                 var expanded by remember { mutableStateOf(false) }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("小提示", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            "小提示",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         ExpandableTipIcon(expanded = expanded, onExpandedChange = { expanded = it })
                     }
                     ExpandableTipContent(

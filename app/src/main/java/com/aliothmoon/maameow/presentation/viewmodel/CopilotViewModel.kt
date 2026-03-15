@@ -978,7 +978,7 @@ class CopilotViewModel(
     }
 
     private fun supportsLoopCount(tabIndex: Int): Boolean {
-        return tabIndex == TAB_SSS
+        return tabIndex == TAB_SSS || tabIndex == TAB_OTHER_ACTIVITY
     }
 
 
