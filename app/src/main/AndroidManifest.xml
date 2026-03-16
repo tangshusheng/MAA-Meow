@@ -48,6 +48,10 @@
         android:windowSoftInputMode="adjustResize"
         tools:targetApi="30">
 
+        <profileable
+            android:shell="true"
+            tools:targetApi="q" />
+
         <!-- Scoped Storage adaptation metadata -->
         <meta-data
             android:name="ScopedStorage"

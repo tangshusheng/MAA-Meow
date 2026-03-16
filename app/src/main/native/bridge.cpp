@@ -26,6 +26,31 @@
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
+#ifdef NDEBUG
+#define NATIVE_COPY_FRAME_TIMING_START()
+#define NATIVE_COPY_FRAME_TIMING_END() ((void) 0)
+#else
+#define NATIVE_COPY_FRAME_TIMING_START() \
+    auto nativeCopyFrameStart = std::chrono::steady_clock::now()
+#define NATIVE_COPY_FRAME_TIMING_END()                                                     \
+    do {                                                                                   \
+        auto nativeCopyFrameElapsedNs =                                                    \
+                std::chrono::duration_cast<std::chrono::nanoseconds>(                      \
+                        std::chrono::steady_clock::now() - nativeCopyFrameStart            \
+                ).count();                                                                 \
+        g_nativeCopyFrameWindowTotalNs += nativeCopyFrameElapsedNs;                        \
+        ++g_nativeCopyFrameWindowCount;                                                    \
+        if (g_nativeCopyFrameWindowCount >= 100) {                                         \
+            double avgMs = static_cast<double>(g_nativeCopyFrameWindowTotalNs) /           \
+                           static_cast<double>(g_nativeCopyFrameWindowCount) / 1000000.0;  \
+            LOGD("NativeCopyFrameFromHardwareBuffer avg over %d calls: %.3f ms",           \
+                 g_nativeCopyFrameWindowCount, avgMs);                                     \
+            g_nativeCopyFrameWindowTotalNs = 0;                                            \
+            g_nativeCopyFrameWindowCount = 0;                                              \
+        }                                                                                  \
+    } while (0)
+#endif
+
 static jstring ping(JNIEnv *env, jclass clazz);
 
 static void nativeInitFrameBuffers(JNIEnv *env, jclass clazz, jint width, jint height);
@@ -48,51 +73,113 @@ static void nativeSetPreviewSurface(JNIEnv *env, jclass clazz, jobject jSurface)
 
 #endif
 
-static void
-ProcessFrameData(const uint8_t *src, uint8_t *dstRGBA, uint8_t *dstBGR, int width, int height,
-                 int srcStride) {
-    for (int y = 0; y < height; ++y) {
-        const uint8_t *srcLine = src + y * srcStride;
-        uint8_t *dstBGRLine = dstBGR + y * width * 3;
-        uint8_t *dstRGBALine = dstRGBA ? (dstRGBA + y * width * 4) : nullptr;
+static void ProcessFrameDataV2(
+        const uint8_t *__restrict src,
+        uint8_t *__restrict dstRGBA,
+        uint8_t *__restrict dstBGR,
+        int width,
+        int height,
+        int srcStride) {
+    if (dstRGBA) {
+        for (int y = 0; y < height; ++y) {
+            const uint8_t *s = src + y * srcStride;
+            uint8_t *d4 = dstRGBA + y * width * 4;
+            uint8_t *d3 = dstBGR + y * width * 3;
 
-        if (y + 1 < height) __builtin_prefetch(src + (y + 1) * srcStride, 0, 3);
+            int x = 0;
 
-        int x = 0;
-        // ps: 模拟器不差这点性能(
 #if defined(__ARM_NEON)
-        for (; x <= width - 16; x += 16) {
-            uint8x16x4_t rgba = vld4q_u8(srcLine + x * 4);
+            for (; x <= width - 16; x += 16) {
+                uint8x16x4_t rgba = vld4q_u8(s);
+                s += 64;
 
-            // 如果需要预览，直接写回 RGBA (此时数据已经在寄存器中，不需要重新加载)
-            if (dstRGBALine) {
-                vst4q_u8(dstRGBALine + x * 4, rgba);
+                vst4q_u8(d4, rgba);
+                d4 += 64;
+
+                uint8x16x3_t bgr;
+                bgr.val[0] = rgba.val[2];
+                bgr.val[1] = rgba.val[1];
+                bgr.val[2] = rgba.val[0];
+                vst3q_u8(d3, bgr);
+                d3 += 48;
             }
 
-            // 交换 R 和 B 产出 BGR
-            uint8x16x3_t bgr;
-            bgr.val[0] = rgba.val[2]; // B
-            bgr.val[1] = rgba.val[1]; // G
-            bgr.val[2] = rgba.val[0]; // R
-            vst3q_u8(dstBGRLine + x * 3, bgr);
-        }
+            for (; x <= width - 8; x += 8) {
+                uint8x8x4_t rgba = vld4_u8(s);
+                s += 32;
+
+                vst4_u8(d4, rgba);
+                d4 += 32;
+
+                uint8x8x3_t bgr;
+                bgr.val[0] = rgba.val[2];
+                bgr.val[1] = rgba.val[1];
+                bgr.val[2] = rgba.val[0];
+                vst3_u8(d3, bgr);
+                d3 += 24;
+            }
 #endif
-        for (; x < width; ++x) {
-            uint8_t r = srcLine[x * 4 + 0];
-            uint8_t g = srcLine[x * 4 + 1];
-            uint8_t b = srcLine[x * 4 + 2];
-            uint8_t a = srcLine[x * 4 + 3];
 
-            if (dstRGBALine) {
-                dstRGBALine[x * 4 + 0] = r;
-                dstRGBALine[x * 4 + 1] = g;
-                dstRGBALine[x * 4 + 2] = b;
-                dstRGBALine[x * 4 + 3] = a;
+            for (; x < width; ++x) {
+                uint8_t r = s[0];
+                uint8_t g = s[1];
+                uint8_t b = s[2];
+                uint8_t a = s[3];
+
+                d4[0] = r;
+                d4[1] = g;
+                d4[2] = b;
+                d4[3] = a;
+                d3[0] = b;
+                d3[1] = g;
+                d3[2] = r;
+
+                s += 4;
+                d4 += 4;
+                d3 += 3;
+            }
+        }
+    } else {
+        for (int y = 0; y < height; ++y) {
+            const uint8_t *s = src + y * srcStride;
+            uint8_t *d3 = dstBGR + y * width * 3;
+
+            int x = 0;
+
+#if defined(__ARM_NEON)
+            for (; x <= width - 16; x += 16) {
+                uint8x16x4_t rgba = vld4q_u8(s);
+                s += 64;
+
+                uint8x16x3_t bgr;
+                bgr.val[0] = rgba.val[2];
+                bgr.val[1] = rgba.val[1];
+                bgr.val[2] = rgba.val[0];
+                vst3q_u8(d3, bgr);
+                d3 += 48;
             }
 
-            dstBGRLine[x * 3 + 0] = b;
-            dstBGRLine[x * 3 + 1] = g;
-            dstBGRLine[x * 3 + 2] = r;
+            for (; x <= width - 8; x += 8) {
+                uint8x8x4_t rgba = vld4_u8(s);
+                s += 32;
+
+                uint8x8x3_t bgr;
+                bgr.val[0] = rgba.val[2];
+                bgr.val[1] = rgba.val[1];
+                bgr.val[2] = rgba.val[0];
+                vst3_u8(d3, bgr);
+                d3 += 24;
+            }
+#endif
+
+            for (; x < width; ++x) {
+                d3[0] = s[2];
+                d3[1] = s[1];
+                d3[2] = s[0];
+
+                s += 4;
+                d3 += 3;
+            }
         }
     }
 }
@@ -185,6 +272,11 @@ static std::atomic<FrameBuffer *> g_readBuffer{nullptr};
 static std::atomic<int64_t> g_frameCount{0};
 static bool g_frameBuffersInitialized = false;
 
+#ifndef NDEBUG
+static int64_t g_nativeCopyFrameWindowTotalNs = 0;
+static int g_nativeCopyFrameWindowCount = 0;
+#endif
+
 static constexpr auto DRIVE_CLAZZ = "com/aliothmoon/maameow/maa/DriverClass";
 static constexpr auto NATIVE_BRIDGE_CLAZZ = "com/aliothmoon/maameow/bridge/NativeBridgeLib";
 
@@ -228,26 +320,27 @@ UpcallInputControl(JNIEnv *env, MethodType method, int x, int y, int keyCode, in
     switch (method) {
         case TOUCH_DOWN:
             targetMethod = g_touch_down_method;
-            break;
+            return env->CallStaticBooleanMethod(g_driver_class, targetMethod, x, y, displayId) ? 0
+                                                                                               : -1;
         case TOUCH_MOVE:
             targetMethod = g_touch_move_method;
-            break;
+            return env->CallStaticBooleanMethod(g_driver_class, targetMethod, x, y, displayId) ? 0
+                                                                                               : -1;
         case TOUCH_UP:
             targetMethod = g_touch_up_method;
-            break;
+            return env->CallStaticBooleanMethod(g_driver_class, targetMethod, x, y, displayId) ? 0
+                                                                                               : -1;
         case KEY_DOWN:
             targetMethod = g_key_down_method;
-            break;
+            return env->CallStaticBooleanMethod(g_driver_class, targetMethod, keyCode, displayId)
+                   ? 0 : -1;
         case KEY_UP:
             targetMethod = g_key_up_method;
-            break;
+            return env->CallStaticBooleanMethod(g_driver_class, targetMethod, keyCode, displayId)
+                   ? 0 : -1;
         default:
             return -1;
     }
-    if (method == KEY_DOWN || method == KEY_UP)
-        return env->CallStaticBooleanMethod(g_driver_class, targetMethod, keyCode, displayId) ? 0
-                                                                                              : -1;
-    return env->CallStaticBooleanMethod(g_driver_class, targetMethod, x, y, displayId) ? 0 : -1;
 }
 
 static int UpcallStartApp(JNIEnv *env, const char *packageName, int displayId, bool forceStop) {
@@ -391,12 +484,32 @@ int64_t CopyFrameFromHardwareBuffer(void *env_ptr, void *hardwareBufferObj, int6
         needsPreview = (g_previewWindow != nullptr);
     }
 
-    ProcessFrameData((uint8_t *) srcAddr,
-                     needsPreview ? target->data : nullptr,
-                     target->bgr_data,
-                     target->width, target->height,
-                     desc.stride * 4
+#ifndef NDEBUG
+    auto processFrameStart = std::chrono::steady_clock::now();
+#endif
+    ProcessFrameDataV2((uint8_t *) srcAddr,
+                       needsPreview ? target->data : nullptr,
+                       target->bgr_data,
+                       target->width, target->height,
+                       desc.stride * 4
     );
+#ifndef NDEBUG
+    auto processFrameElapsedNs =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::steady_clock::now() - processFrameStart
+            ).count();
+    g_processFrameWindowTotalNs += processFrameElapsedNs;
+    ++g_processFrameWindowCount;
+    if (g_processFrameWindowCount >= 100) {
+        double avgMs = static_cast<double>(g_processFrameWindowTotalNs) /
+                       static_cast<double>(g_processFrameWindowCount) /
+                       1000000.0;
+        LOGI("ProcessFrameData avg over %d calls: %.3f ms",
+             g_processFrameWindowCount, avgMs);
+        g_processFrameWindowTotalNs = 0;
+        g_processFrameWindowCount = 0;
+    }
+#endif
 
     AHardwareBuffer_unlock(buffer, nullptr);
     target->timestamp = timestampNs;
@@ -472,7 +585,11 @@ static void nativeInitFrameBuffers(JNIEnv *env, jclass clazz, jint width, jint h
 
 static jlong nativeCopyFrameFromHardwareBuffer(JNIEnv *env, jclass clazz, jobject hardwareBuffer,
                                                jlong timestampNs) {
-    return hardwareBuffer ? CopyFrameFromHardwareBuffer(env, hardwareBuffer, timestampNs) : -1;
+    if (!hardwareBuffer) return -1;
+    NATIVE_COPY_FRAME_TIMING_START();
+    auto result = CopyFrameFromHardwareBuffer(env, hardwareBuffer, timestampNs);
+    NATIVE_COPY_FRAME_TIMING_END();
+    return result;
 }
 
 static void nativeReleaseFrameBuffers(JNIEnv *env, jclass clazz) { ReleaseFrameBuffers(); }
