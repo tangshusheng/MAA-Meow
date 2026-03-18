@@ -266,7 +266,7 @@ fun HomeView(
                             .fillMaxWidth()
                             .height(48.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
+                            containerColor = MaterialTheme.colorScheme.error,
                             contentColor = Color.White
                         ),
                         shape = MaterialTheme.shapes.large,

@@ -1,10 +1,8 @@
 package com.aliothmoon.maameow.presentation.view.panel
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,12 +11,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -27,6 +22,7 @@ import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
 import com.aliothmoon.maameow.presentation.components.CheckBoxWithLabel
 import com.aliothmoon.maameow.presentation.components.ITextField
+import com.aliothmoon.maameow.presentation.components.SelectableChipGroup
 import org.koin.compose.koinInject
 
 /**
@@ -54,52 +50,14 @@ fun WakeUpConfigPanel(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // 客户端类型选择
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = "客户端类型",
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Medium
-            )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                WakeUpConfig.CLIENT_TYPE_OPTIONS.forEach { (value, displayName) ->
-                    val isSelected = value == config.clientType
-                    val chipColor = when {
-                        isSelected -> MaterialTheme.colorScheme.primary.copy(
-                            alpha = if (isTaskActive) 0.5f else 1f
-                        )
-
-                        isTaskActive -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
-                        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                    }
-                    val textColor = when {
-                        isSelected -> MaterialTheme.colorScheme.onPrimary
-                        isTaskActive -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
-                        else -> MaterialTheme.colorScheme.onSurface
-                    }
-                    Surface(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .then(
-                                if (isTaskActive) Modifier
-                                else Modifier.clickable { onConfigChange(config.copy(clientType = value)) }
-                            ),
-                        color = chipColor,
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text(
-                            text = displayName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = textColor,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
-                    }
-                }
-            }
-        }
+        SelectableChipGroup(
+            label = "客户端类型",
+            selectedValue = config.clientType,
+            options = WakeUpConfig.CLIENT_TYPE_OPTIONS,
+            onSelected = { onConfigChange(config.copy(clientType = it)) },
+            enabled = !isTaskActive,
+            labelFontWeight = FontWeight.Medium
+        )
 
         if (showAccountSwitchInput) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -114,7 +72,7 @@ fun WakeUpConfigPanel(
                 Text(
                     text = "需要切换至的账号，留空以禁用。输入登录界面显示的内容，例如 123****4567；支持部分匹配。仅支持官服、B服，不支持登录账号。",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))

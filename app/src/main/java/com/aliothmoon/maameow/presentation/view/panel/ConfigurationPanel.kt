@@ -348,8 +348,8 @@ private fun TaskManagementView(
             onClick = onRemove,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.error
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = Color.White
             ),
             shape = RoundedCornerShape(4.dp)
         ) {

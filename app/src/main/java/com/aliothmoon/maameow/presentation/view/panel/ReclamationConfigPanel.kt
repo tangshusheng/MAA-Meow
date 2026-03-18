@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import com.aliothmoon.maameow.presentation.components.SelectableChipGroup
 import androidx.compose.ui.unit.dp
 import com.aliothmoon.maameow.data.model.ReclamationConfig
 import com.aliothmoon.maameow.presentation.components.CheckBoxWithLabel
@@ -282,7 +283,6 @@ fun ReclamationConfigPanel(config: ReclamationConfig, onConfigChange: (Reclamati
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ReclamationButtonGroup(
     label: String,
@@ -291,37 +291,12 @@ private fun ReclamationButtonGroup(
     onValueChange: (Any) -> Unit,
     enabled: Boolean = true
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            options.forEach { (value, displayName) ->
-                val isSelected = value == selectedValue
-                Surface(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable(enabled = enabled) { onValueChange(value) },
-                    color = when {
-                        !enabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        isSelected -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.surfaceVariant
-                    },
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text(
-                        text = displayName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = when {
-                            !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            isSelected -> MaterialTheme.colorScheme.onPrimary
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                }
-            }
-        }
-    }
+    SelectableChipGroup(
+        label = label,
+        selectedValue = selectedValue,
+        options = options,
+        onSelected = onValueChange,
+        enabled = enabled,
+        labelFontWeight = FontWeight.Medium
+    )
 }

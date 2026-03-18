@@ -64,8 +64,24 @@ class ActivityManager(
     private val expiredActivityRegex = Regex("^[A-Za-z]{2}-\\d{1,2}$")
 
 
-    /** 鹰历时区（UTC+8） */
-    private val serverZone = ZoneId.of("Asia/Shanghai")
+    /** 鹰历时区 */
+    private val serverZone: ZoneId
+        get() = ServerTimezone.getServerZone(chainState.getClientType())
+
+    /**
+     * 获取当前鹰角历的星期几（根据客户端类型自动选择时区）
+     * 迁移自 WPF DateTimeExtension.ToYjDateTime
+     */
+    fun getYjDayOfWeek(): DayOfWeek {
+        return ServerTimezone.getYjDayOfWeek(chainState.getClientType())
+    }
+
+    /**
+     * 获取当前鹰角历星期几的中文名
+     */
+    fun getYjDayOfWeekName(): String {
+        return ServerTimezone.getYjDayOfWeekName(chainState.getClientType())
+    }
 
     suspend fun load(clientType: String) {
         doLoadActivityStages(clientType)
@@ -210,7 +226,7 @@ class ActivityManager(
      */
     fun getMergedStageGroups(filterByToday: Boolean = false): List<StageGroup> {
         val groups = mutableListOf<StageGroup>()
-        val today = LocalDate.now().dayOfWeek
+        val today = getYjDayOfWeek()
         val currentStages = _stages.value
 
         // 1. 活动关卡分组
@@ -459,9 +475,7 @@ class ActivityManager(
      * @param dayOfWeek 星期几
      * @return 提示文本行列表
      */
-    fun getStageTips(
-        dayOfWeek: DayOfWeek = LocalDate.now().dayOfWeek
-    ): List<String> {
+    fun getStageTips(dayOfWeek: DayOfWeek = getYjDayOfWeek()): List<String> {
         val lines = mutableListOf<String>()
         val shownSideStories = mutableSetOf<String>()
         var resourceTipShown = false

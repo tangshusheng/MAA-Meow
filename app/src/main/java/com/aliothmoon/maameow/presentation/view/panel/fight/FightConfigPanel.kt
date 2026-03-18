@@ -72,6 +72,7 @@ fun FightConfigPanel(
     val dropItemsList by itemHelper.dropItems.collectAsStateWithLifecycle()
     val allStageItems = remember { activityManager.getMergedStageList(filterByToday = false) }
     val stageTips = remember { activityManager.getStageTips() }
+    val todayName = remember { activityManager.getYjDayOfWeekName() }
 
     // 分组列表 -- 依赖 hideUnavailableStage
     val stageGroups = remember(config.hideUnavailableStage) {
@@ -149,7 +150,8 @@ fun FightConfigPanel(
                             TodayStagesHint(
                                 stageGroups = stageGroups,
                                 isResourceCollectionOpen = isResourceCollectionOpen,
-                                stageTips = stageTips
+                                stageTips = stageTips,
+                                todayName = todayName
                             )
                         }
                         item {
@@ -626,8 +628,8 @@ private fun GroupedStageButtonGroup(
                             .clickable { onItemSelected(stage.code) },
                         color = when {
                             isSelected -> MaterialTheme.colorScheme.primary
-                            !isOpen -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            else -> MaterialTheme.colorScheme.surfaceVariant
+                            !isOpen -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
+                            else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                         },
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -640,8 +642,8 @@ private fun GroupedStageButtonGroup(
                             style = MaterialTheme.typography.bodySmall,
                             color = when {
                                 isSelected -> MaterialTheme.colorScheme.onPrimary
-                                !isOpen -> MaterialTheme.colorScheme.onSurface.copy(alpha = MaaThemeAlphas.Disabled)
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                !isOpen -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+                                else -> MaterialTheme.colorScheme.onSurface
                             },
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )

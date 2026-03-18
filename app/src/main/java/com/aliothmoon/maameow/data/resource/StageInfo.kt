@@ -1,7 +1,6 @@
 package com.aliothmoon.maameow.data.resource
 
 import java.time.DayOfWeek
-import java.time.LocalDate
 
 /**
  * 关卡信息（UI 使用）
@@ -30,10 +29,11 @@ data class StageInfo(
     }
 
     /**
-     * 检查关卡今天是否开放
+     * 检查关卡今天是否开放（使用鹰角历，04:00 换日）
+     * @param clientType 客户端类型，用于确定服务器时区
      */
-    fun isOpenToday(): Boolean {
-        return isOpenOn(DayOfWeek.of(LocalDate.now().dayOfWeek.value))
+    fun isOpenToday(clientType: String = "Official"): Boolean {
+        return isOpenOn(ServerTimezone.getYjDayOfWeek(clientType))
     }
 
     companion object {

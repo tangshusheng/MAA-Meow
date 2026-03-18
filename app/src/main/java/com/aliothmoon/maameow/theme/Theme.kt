@@ -63,7 +63,7 @@ private fun createLightColorScheme(
         onSurfaceVariant = LightOnSurfaceVariant,
         outline = LightOutline,
         outlineVariant = LightSurfaceVariant,
-        error = Color(0xFFFF3B30),
+        error = Color(0xfff53f3f),
         onError = Color.White,
         errorContainer = Color(0xFFFFD8D6),
         onErrorContainer = Color(0xFF690005)

@@ -30,14 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aliothmoon.maameow.data.resource.StageGroup
-import java.time.DayOfWeek.FRIDAY
-import java.time.DayOfWeek.MONDAY
-import java.time.DayOfWeek.SATURDAY
-import java.time.DayOfWeek.SUNDAY
-import java.time.DayOfWeek.THURSDAY
-import java.time.DayOfWeek.TUESDAY
-import java.time.DayOfWeek.WEDNESDAY
-import java.time.LocalDate
 
 /**
  * 今日开放关卡提示
@@ -47,7 +39,8 @@ import java.time.LocalDate
 fun TodayStagesHint(
     stageGroups: List<StageGroup>,
     isResourceCollectionOpen: Boolean,
-    stageTips: List<String>
+    stageTips: List<String>,
+    todayName: String = ""
 ) {
     // 收集活动关卡分组（包含剩余天数）
     val activities = stageGroups.filter { it.title != "常驻关卡" }
@@ -62,18 +55,6 @@ fun TodayStagesHint(
     if (activities.isEmpty() && todayOpenStages.isEmpty()) return
 
     var expanded by remember { mutableStateOf(false) }
-    val todayName = remember {
-        when (LocalDate.now().dayOfWeek) {
-            MONDAY -> "周一"
-            TUESDAY -> "周二"
-            WEDNESDAY -> "周三"
-            THURSDAY -> "周四"
-            FRIDAY -> "周五"
-            SATURDAY -> "周六"
-            SUNDAY -> "周日"
-            else -> ""
-        }
-    }
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
