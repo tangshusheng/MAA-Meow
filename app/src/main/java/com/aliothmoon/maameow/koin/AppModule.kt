@@ -16,6 +16,7 @@ import com.aliothmoon.maameow.data.log.ApplicationLogWriter
 import com.aliothmoon.maameow.data.log.TaskLogWriter
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.data.preferences.TaskChainState
+import com.aliothmoon.maameow.schedule.data.ScheduleStrategyRepository
 import com.aliothmoon.maameow.data.repository.CopilotRepository
 import com.aliothmoon.maameow.data.resource.ActivityManager
 import com.aliothmoon.maameow.data.resource.ItemHelper
@@ -68,6 +69,7 @@ val appModule = module {
 
 
     singleOf(::AppSettingsManager)
+    singleOf(::ScheduleStrategyRepository)
     singleOf(::TaskChainState)
     singleOf(::MaaPathConfig)
     singleOf(::ResourceDownloader)

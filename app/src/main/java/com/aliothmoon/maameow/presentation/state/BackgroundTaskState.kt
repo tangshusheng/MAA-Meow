@@ -9,5 +9,6 @@ data class BackgroundTaskState(
     val isFullscreenMonitor: Boolean = false,
     val isEditMode: Boolean = false,
     val isAddingTask: Boolean = false,
+    val isProfileMode: Boolean = false,
     val dialog: PanelDialogUiState? = null,
 )

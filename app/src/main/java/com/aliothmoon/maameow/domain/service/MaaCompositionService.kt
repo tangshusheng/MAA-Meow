@@ -155,7 +155,7 @@ class MaaCompositionService(
         }
     }
 
-    suspend fun start(tasks: List<MaaTaskParams>): StartResult {
+    suspend fun start(tasks: List<MaaTaskParams>, clientType: String = taskChainState.getClientType()): StartResult {
         setRunState(MaaExecutionState.STARTING)
         val taskNames = tasks.map { it.type.value }
         runtimeLogCenter.startSession(taskNames)
@@ -207,7 +207,7 @@ class MaaCompositionService(
                     runtimeLogCenter.endSessionAndWait("DISPLAY_MODE_ERROR")
                     return@useRemoteService StartResult.ConnectionError(StartResult.ConnectionError.ConnectPhase.DISPLAY_MODE)
                 }
-                val resolution = resolveAndSetResolution(it, mode)
+                val resolution = resolveAndSetResolution(it, mode, clientType)
                 val displayId = it.startVirtualDisplay()
                 if (displayId == -1) {
                     setRunState(MaaExecutionState.ERROR)
@@ -262,7 +262,7 @@ class MaaCompositionService(
         }
     }
 
-    suspend fun startCopilot(task: MaaTaskParams): StartResult {
+    suspend fun startCopilot(task: MaaTaskParams, clientType: String = taskChainState.getClientType()): StartResult {
         setRunState(MaaExecutionState.STARTING)
         runtimeLogCenter.startSession(listOf(task.type.value))
         runtimeLogCenter.appendAndWait("开始执行自动战斗", LogLevel.INFO)
@@ -312,7 +312,7 @@ class MaaCompositionService(
                     runtimeLogCenter.endSessionAndWait("DISPLAY_MODE_ERROR")
                     return@useRemoteService StartResult.ConnectionError(StartResult.ConnectionError.ConnectPhase.DISPLAY_MODE)
                 }
-                val resolution = resolveAndSetResolution(it, mode)
+                val resolution = resolveAndSetResolution(it, mode, clientType)
                 val displayId = it.startVirtualDisplay()
                 if (displayId == -1) {
                     setRunState(MaaExecutionState.ERROR)
@@ -367,10 +367,10 @@ class MaaCompositionService(
 
     private fun resolveAndSetResolution(
         service: RemoteService,
-        mode: RunMode
+        mode: RunMode,
+        clientType: String
     ): DefaultDisplayConfig.Resolution {
         val resolution = if (mode == RunMode.BACKGROUND) {
-            val clientType = taskChainState.getClientType()
             val r = DefaultDisplayConfig.resolveResolution(clientType)
             service.setVirtualDisplayResolution(r.width, r.height, r.dpi)
             Timber.i("Virtual display resolution: %dx%d@%d for client=%s", r.width, r.height, r.dpi, clientType)

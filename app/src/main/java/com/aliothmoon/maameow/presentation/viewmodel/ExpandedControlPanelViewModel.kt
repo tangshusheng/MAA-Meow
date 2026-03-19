@@ -104,8 +104,47 @@ class ExpandedControlPanelViewModel(
     }
 
     fun onToggleEditMode() {
-        _state.update { it.copy(isEditMode = !it.isEditMode, isAddingTask = false) }
+        _state.update { it.copy(isEditMode = !it.isEditMode, isAddingTask = false, isProfileMode = false) }
         Timber.d("Edit mode toggled: %s", _state.value.isEditMode)
+    }
+
+    fun onToggleProfileMode() {
+        _state.update { it.copy(isProfileMode = !it.isProfileMode, isEditMode = false, isAddingTask = false) }
+        Timber.d("Profile mode toggled: %s", _state.value.isProfileMode)
+    }
+
+    fun onSwitchProfile(profileId: String) {
+        viewModelScope.launch {
+            chainState.switchProfile(profileId)
+            // 切换后清除选中状态
+            _state.update { it.copy(selectedNodeId = null) }
+        }
+    }
+
+    fun onCreateProfile() {
+        viewModelScope.launch {
+            chainState.createProfile()
+            _state.update { it.copy(selectedNodeId = null) }
+        }
+    }
+
+    fun onDeleteProfile(profileId: String) {
+        viewModelScope.launch {
+            chainState.deleteProfile(profileId)
+            _state.update { it.copy(selectedNodeId = null) }
+        }
+    }
+
+    fun onRenameProfile(profileId: String, name: String) {
+        viewModelScope.launch {
+            chainState.renameProfile(profileId, name)
+        }
+    }
+
+    fun onDuplicateProfile(profileId: String) {
+        viewModelScope.launch {
+            chainState.duplicateProfile(profileId)
+        }
     }
 
     fun onToggleAddingTask() {

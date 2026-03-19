@@ -222,7 +222,6 @@ fun SettingsView(
                     )
                     SettingSwitchItem(
                         title = "跳过 Shizuku 检查",
-                        description = "如果 Shizuku 已启动但应用仍弹出警告，可开启此项（仅限 Shizuku 模式）",
                         contentColor = contentColor,
                         checked = skipShizukuCheck,
                         enabled = startupBackend == RemoteBackend.SHIZUKU,

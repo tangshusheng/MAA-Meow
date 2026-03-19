@@ -1,6 +1,7 @@
 package com.aliothmoon.maameow.presentation.view.home
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +36,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -257,7 +259,7 @@ fun HomeView(
                 }
 
                 item {
-                    Button(
+                    OutlinedButton(
                         onClick = {
                             Timber.d("关闭所有服务")
                             viewModel.onStopAllServices()
@@ -265,10 +267,10 @@ fun HomeView(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = Color.White
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
                         ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.6f)),
                         shape = MaterialTheme.shapes.large,
                         enabled = !uiState.isLoading
                     ) {
@@ -686,10 +688,14 @@ private fun ForegroundModeSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Button(
+            FilledTonalButton(
                 onClick = onChangeTo16x9Resolution,
                 modifier = Modifier.weight(1f),
-                shape = MaterialTheme.shapes.small
+                shape = MaterialTheme.shapes.small,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             ) {
                 Text(
                     text = "调整为适配分辨率",
@@ -697,10 +703,14 @@ private fun ForegroundModeSection(
                 )
             }
 
-            Button(
+            FilledTonalButton(
                 onClick = onResetResolution,
                 modifier = Modifier.weight(1f),
-                shape = MaterialTheme.shapes.small
+                shape = MaterialTheme.shapes.small,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             ) {
                 Text(
                     text = "重置分辨率",

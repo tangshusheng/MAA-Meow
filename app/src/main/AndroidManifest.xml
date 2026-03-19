@@ -23,7 +23,7 @@
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE"
         tools:ignore="ForegroundServicesPolicy" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.PROJECT_MEDIA" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -32,10 +32,16 @@
         android:name="android.permission.REQUEST_INSTALL_PACKAGES"
         tools:ignore="RequestInstallPackagesPolicy" />
 
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"
+        tools:ignore="ExactAlarmPolicy" />
+
     <application
         android:name=".MaaApplication"
         android:allowBackup="true"
         android:allowNativeHeapPointerTagging="false"
+        android:enableOnBackInvokedCallback="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -80,6 +86,36 @@
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_helper_service_config" />
+        </service>
+
+        <!-- 定时任务闹钟接收器 -->
+        <receiver
+            android:name=".schedule.receiver.ScheduleReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.aliothmoon.maameow.SCHEDULE_TRIGGER" />
+                <action android:name="com.aliothmoon.maameow.SCHEDULE_CANCEL" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 开机恢复定时任务 -->
+        <receiver
+            android:name=".schedule.receiver.BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 定时任务执行服务 -->
+        <service
+            android:name=".schedule.service.ScheduleExecutionService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            tools:ignore="ForegroundServicePermission">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Scheduled MAA task execution via Shizuku privileged service" />
         </service>
 
         <provider

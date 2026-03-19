@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.HorizontalDivider
@@ -47,8 +48,14 @@ sealed class BottomNavTab(
         icon = Icons.Default.PlayArrow
     )
 
+    data object SCHEDULE : BottomNavTab(
+        route = Routes.SCHEDULE,
+        label = "定时",
+        icon = Icons.Default.DateRange
+    )
+
     companion object {
-        val all = listOf(HOME, BACKGROUND)
+        val all = listOf(HOME, BACKGROUND, SCHEDULE)
     }
 }
 

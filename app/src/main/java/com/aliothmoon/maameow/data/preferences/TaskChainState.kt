@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.aliothmoon.maameow.constant.Packages
 import com.aliothmoon.maameow.data.model.TaskChainNode
+import com.aliothmoon.maameow.data.model.TaskProfile
 import com.aliothmoon.maameow.data.model.TaskTypeInfo
 import com.aliothmoon.maameow.data.model.TaskParamProvider
 import com.aliothmoon.maameow.data.model.WakeUpConfig
@@ -39,6 +40,12 @@ class TaskChainState(private val context: Context) {
             name = "task_chain"
         )
         private val CHAIN_KEY = stringPreferencesKey("chain")
+        private val PROFILES_KEY = stringPreferencesKey("profiles")
+        private val ACTIVE_PROFILE_KEY = stringPreferencesKey("active_profile_id")
+
+        private const val PROFILE_NAME_PREFIX = "配置-"
+        private const val MAX_PROFILES = 10
+        private const val MAX_PROFILE_NAME_LENGTH = 20
     }
 
     private val defaultChain: List<TaskChainNode> by lazy { buildDefaultChain() }
@@ -46,11 +53,46 @@ class TaskChainState(private val context: Context) {
     private val _chain = MutableStateFlow(defaultChain)
     val chain: StateFlow<List<TaskChainNode>> = _chain.asStateFlow()
 
+    private val _profiles = MutableStateFlow<List<TaskProfile>>(emptyList())
+    val profiles: StateFlow<List<TaskProfile>> = _profiles.asStateFlow()
+
+    private val _activeProfileId = MutableStateFlow("")
+    val activeProfileId: StateFlow<String> = _activeProfileId.asStateFlow()
+
+    private val _isLoaded = MutableStateFlow(false)
+    val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
+
     init {
-        // 从 DataStore 加载持久化数据（仅一次），覆盖默认值
         scope.launch {
             val prefs = context.store.data.first()
-            _chain.value = decodeChain(prefs[CHAIN_KEY])
+            val profilesJson = prefs[PROFILES_KEY]
+
+            if (profilesJson != null) {
+                // 已有 Profile 数据
+                val loadedProfiles = decodeProfiles(profilesJson)
+                val activeId = prefs[ACTIVE_PROFILE_KEY] ?: loadedProfiles.firstOrNull()?.id ?: ""
+                _profiles.value = loadedProfiles
+                _activeProfileId.value = activeId
+                val activeProfile = loadedProfiles.find { it.id == activeId }
+                    ?: loadedProfiles.firstOrNull()
+                if (activeProfile != null) {
+                    _activeProfileId.value = activeProfile.id
+                    _chain.value = activeProfile.chain
+                }
+            } else {
+                // 迁移: 旧版数据无 profiles key, 将现有 chain 包装为单个 Profile
+                val legacyChain = decodeChain(prefs[CHAIN_KEY])
+                val profile = TaskProfile(
+                    name = "${PROFILE_NAME_PREFIX}1",
+                    chain = legacyChain
+                )
+                _profiles.value = listOf(profile)
+                _activeProfileId.value = profile.id
+                _chain.value = legacyChain
+                // 持久化迁移结果
+                persistProfiles(listOf(profile), profile.id)
+            }
+            _isLoaded.value = true
         }
     }
 
@@ -163,6 +205,124 @@ class TaskChainState(private val context: Context) {
         }
     }
 
+    // ========== Profile 管理 ==========
+
+    suspend fun switchProfile(profileId: String) {
+        val currentProfiles = _profiles.value
+        val target = currentProfiles.find { it.id == profileId } ?: run {
+            Timber.w("switchProfile: profile %s not found", profileId)
+            return
+        }
+        // 保存当前链到旧 Profile
+        val updatedProfiles = currentProfiles.map { p ->
+            if (p.id == _activeProfileId.value) p.copy(chain = _chain.value) else p
+        }
+        // 加载新 Profile 的链
+        _chain.value = target.chain
+        _activeProfileId.value = profileId
+        _profiles.value = updatedProfiles
+        // 持久化
+        persistProfiles(updatedProfiles, profileId)
+        Timber.d("Switched to profile: %s (%s)", target.name, profileId)
+    }
+
+    suspend fun createProfile(): String? {
+        val currentProfiles = _profiles.value
+        if (currentProfiles.size >= MAX_PROFILES) {
+            Timber.w("createProfile: max profiles (%d) reached", MAX_PROFILES)
+            return null
+        }
+        // 先保存当前活跃 Profile 的链
+        val savedProfiles = currentProfiles.map { p ->
+            if (p.id == _activeProfileId.value) p.copy(chain = _chain.value) else p
+        }
+        val newProfile = TaskProfile(
+            name = nextProfileName(savedProfiles),
+            chain = defaultChain
+        )
+        val updatedProfiles = savedProfiles + newProfile
+        // 切换到新 Profile
+        _chain.value = newProfile.chain
+        _activeProfileId.value = newProfile.id
+        _profiles.value = updatedProfiles
+        persistProfiles(updatedProfiles, newProfile.id)
+        Timber.d("Created profile: %s (%s)", newProfile.name, newProfile.id)
+        return newProfile.id
+    }
+
+    suspend fun deleteProfile(profileId: String) {
+        val currentProfiles = _profiles.value
+        if (currentProfiles.size <= 1) {
+            Timber.w("deleteProfile: cannot delete last profile")
+            return
+        }
+        // 先保存当前链
+        val savedProfiles = currentProfiles.map { p ->
+            if (p.id == _activeProfileId.value) p.copy(chain = _chain.value) else p
+        }
+        val remaining = savedProfiles.filter { it.id != profileId }
+        if (remaining.size == savedProfiles.size) {
+            Timber.w("deleteProfile: profile %s not found", profileId)
+            return
+        }
+        // 若删除的是活跃 Profile,切换到列表第一个
+        val newActiveId = if (_activeProfileId.value == profileId) {
+            val first = remaining.first()
+            _chain.value = first.chain
+            first.id
+        } else {
+            _activeProfileId.value
+        }
+        _activeProfileId.value = newActiveId
+        _profiles.value = remaining
+        persistProfiles(remaining, newActiveId)
+        Timber.d("Deleted profile: %s", profileId)
+    }
+
+    suspend fun renameProfile(profileId: String, newName: String) {
+        val trimmed = newName.trim()
+        if (trimmed.isEmpty() || trimmed.length > MAX_PROFILE_NAME_LENGTH) {
+            Timber.w("renameProfile: invalid name length: %d", trimmed.length)
+            return
+        }
+        val currentProfiles = _profiles.value
+        val updatedProfiles = currentProfiles.map { p ->
+            if (p.id == profileId) p.copy(name = trimmed) else p
+        }
+        _profiles.value = updatedProfiles
+        persistProfiles(updatedProfiles, _activeProfileId.value)
+        Timber.d("Renamed profile %s to: %s", profileId, trimmed)
+    }
+
+    suspend fun duplicateProfile(profileId: String): String? {
+        val currentProfiles = _profiles.value
+        if (currentProfiles.size >= MAX_PROFILES) {
+            Timber.w("duplicateProfile: max profiles (%d) reached", MAX_PROFILES)
+            return null
+        }
+        // 先保存当前活跃 Profile 的链
+        val savedProfiles = currentProfiles.map { p ->
+            if (p.id == _activeProfileId.value) p.copy(chain = _chain.value) else p
+        }
+        val source = savedProfiles.find { it.id == profileId } ?: run {
+            Timber.w("duplicateProfile: profile %s not found", profileId)
+            return null
+        }
+        // 复制链时为每个节点生成新 ID
+        val duplicatedChain = source.chain.map { it.copy(id = UUID.randomUUID().toString()) }
+        val newProfile = TaskProfile(
+            name = nextProfileName(savedProfiles),
+            chain = duplicatedChain
+        )
+        val updatedProfiles = savedProfiles + newProfile
+        _profiles.value = updatedProfiles
+        persistProfiles(updatedProfiles, _activeProfileId.value)
+        Timber.d("Duplicated profile %s as: %s (%s)", profileId, newProfile.name, newProfile.id)
+        return newProfile.id
+    }
+
+    // ========== 内部工具方法 ==========
+
     private suspend inline fun updateChain(
         crossinline block: (MutableList<TaskChainNode>) -> Unit
     ) {
@@ -171,8 +331,14 @@ class TaskChainState(private val context: Context) {
         reindex(current)
         val snapshot = current.toList()
         _chain.value = snapshot              // 同步更新，立即可见
+        // 同步更新 profiles 中活跃 Profile 的 chain
+        val updatedProfiles = _profiles.value.map { p ->
+            if (p.id == _activeProfileId.value) p.copy(chain = snapshot) else p
+        }
+        _profiles.value = updatedProfiles
         context.store.edit { prefs ->        // 异步持久化
             prefs[CHAIN_KEY] = json.encodeToString<List<TaskChainNode>>(snapshot)
+            prefs[PROFILES_KEY] = json.encodeToString<List<TaskProfile>>(updatedProfiles)
         }
     }
 
@@ -183,6 +349,25 @@ class TaskChainState(private val context: Context) {
         }.getOrElse {
             Timber.w(it, "Failed to decode task chain, using defaults")
             defaultChain
+        }
+    }
+
+    private fun decodeProfiles(raw: String): List<TaskProfile> {
+        return runCatching {
+            json.decodeFromString<List<TaskProfile>>(raw)
+        }.getOrElse {
+            Timber.w(it, "Failed to decode profiles")
+            emptyList()
+        }
+    }
+
+    private suspend fun persistProfiles(profiles: List<TaskProfile>, activeId: String) {
+        context.store.edit { prefs ->
+            prefs[PROFILES_KEY] = json.encodeToString<List<TaskProfile>>(profiles)
+            prefs[ACTIVE_PROFILE_KEY] = activeId
+            // 同步更新 CHAIN_KEY 以保持兼容
+            val activeChain = profiles.find { it.id == activeId }?.chain ?: _chain.value
+            prefs[CHAIN_KEY] = json.encodeToString<List<TaskChainNode>>(activeChain)
         }
     }
 
@@ -201,5 +386,16 @@ class TaskChainState(private val context: Context) {
                 config = info.defaultConfig()
             )
         }
+    }
+
+    private fun nextProfileName(profiles: List<TaskProfile>): String {
+        val maxNum = profiles.mapNotNull { p ->
+            if (p.name.startsWith(PROFILE_NAME_PREFIX)) {
+                p.name.removePrefix(PROFILE_NAME_PREFIX).toIntOrNull()
+            } else {
+                null
+            }
+        }.maxOrNull() ?: 0
+        return "$PROFILE_NAME_PREFIX${maxNum + 1}"
     }
 }

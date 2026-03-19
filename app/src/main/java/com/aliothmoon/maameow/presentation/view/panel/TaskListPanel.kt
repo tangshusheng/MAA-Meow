@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -53,14 +54,53 @@ fun TaskListPanel(
     selectedNodeId: String?,
     isEditMode: Boolean,
     isAddingTask: Boolean,
+    isProfileMode: Boolean,
     onNodeEnabledChange: (String, Boolean) -> Unit,
     onNodeSelected: (String) -> Unit,
     onNodeMove: (Int, Int) -> Unit,
     onToggleEditMode: () -> Unit,
     onToggleAddingTask: () -> Unit,
+    onToggleProfileMode: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.width(IntrinsicSize.Max)) {
+        // 配置选择按钮 - 在编辑任务按钮上方
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggleProfileMode() },
+            shape = RoundedCornerShape(4.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isProfileMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = if (isProfileMode) 2.dp else 0.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = if (isProfileMode) Icons.Default.Check else Icons.Default.List,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = if (isProfileMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (isProfileMode) "完成" else "编辑配置",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isProfileMode) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isProfileMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
         // 编辑任务按钮 - 具备高亮状态
         Card(
             modifier = Modifier

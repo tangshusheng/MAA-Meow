@@ -19,6 +19,7 @@ data class FloatingPanelState(
     val selectedNodeId: String? = null,
     val isEditMode: Boolean = false,
     val isAddingTask: Boolean = false,
+    val isProfileMode: Boolean = false,
     val dialog: PanelDialogUiState? = null
 )
 

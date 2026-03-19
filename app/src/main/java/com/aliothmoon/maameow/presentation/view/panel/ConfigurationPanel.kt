@@ -26,8 +26,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -44,7 +44,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,6 +58,7 @@ import com.aliothmoon.maameow.data.model.RecruitConfig
 import com.aliothmoon.maameow.data.model.RoguelikeConfig
 import com.aliothmoon.maameow.data.model.TaskChainNode
 import com.aliothmoon.maameow.data.model.TaskParamProvider
+import com.aliothmoon.maameow.data.model.TaskProfile
 import com.aliothmoon.maameow.data.model.TaskTypeInfo
 import com.aliothmoon.maameow.data.model.WakeUpConfig
 import com.aliothmoon.maameow.presentation.components.ITextField
@@ -71,14 +71,34 @@ fun TaskConfigPanel(
     selectedNode: TaskChainNode?,
     isEditMode: Boolean,
     isAddingTask: Boolean,
+    isProfileMode: Boolean,
+    profiles: List<TaskProfile>,
+    activeProfileId: String,
     onConfigChange: (TaskParamProvider) -> Unit,
     onAddNode: (TaskTypeInfo) -> Unit,
     onRemoveNode: (String) -> Unit,
     onRenameNode: (String, String) -> Unit,
+    onSwitchProfile: (String) -> Unit,
+    onRenameProfile: (String, String) -> Unit,
+    onDuplicateProfile: (String) -> Unit,
+    onDeleteProfile: (String) -> Unit,
+    onCreateProfile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier) {
         when {
+            // 配置管理模式
+            isProfileMode -> {
+                ProfileManagementPanel(
+                    profiles = profiles,
+                    activeProfileId = activeProfileId,
+                    onSwitch = onSwitchProfile,
+                    onRename = onRenameProfile,
+                    onDuplicate = onDuplicateProfile,
+                    onDelete = onDeleteProfile,
+                    onCreate = onCreateProfile
+                )
+            }
             // 编辑模式：正在新增任务
             isEditMode && isAddingTask -> {
                 TaskGalleryView(onAddNode = onAddNode)
@@ -299,7 +319,7 @@ private fun TaskManagementView(
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "$typeDisplayName - ${node.name}",
+                text = typeDisplayName,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
@@ -344,13 +364,13 @@ private fun TaskManagementView(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
+        OutlinedButton(
             onClick = onRemove,
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error,
-                contentColor = Color.White
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.error
             ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.6f)),
             shape = RoundedCornerShape(4.dp)
         ) {
             Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))

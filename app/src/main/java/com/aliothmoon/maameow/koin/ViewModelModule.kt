@@ -9,6 +9,8 @@ import com.aliothmoon.maameow.presentation.viewmodel.LogHistoryViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.MiniGameViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.SettingsViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.UpdateViewModel
+import com.aliothmoon.maameow.schedule.ui.ScheduleEditViewModel
+import com.aliothmoon.maameow.schedule.ui.ScheduleListViewModel
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -21,6 +23,8 @@ val viewModelModule = module {
     viewModelOf(::LogHistoryViewModel)
     viewModelOf(::ErrorLogViewModel)
     viewModelOf(::BackgroundTaskViewModel)
+    viewModelOf(::ScheduleListViewModel)
+    viewModelOf(::ScheduleEditViewModel)
 }
 
 

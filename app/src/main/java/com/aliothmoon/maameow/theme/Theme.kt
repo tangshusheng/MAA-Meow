@@ -18,12 +18,12 @@ import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 
-private val LightBackground = Color(0xFFF2F2F7)
-private val LightSurface = Color(0xFFFFFFFF)
-private val LightSurfaceVariant = Color(0xFFE5E5EA)
-private val LightOnSurface = Color(0xFF000000)
-private val LightOnSurfaceVariant = Color(0xFF8E8E93)
-private val LightOutline = Color(0xFFC7C7CC)
+private val LightBackground = Color(0xFFF5F2ED)
+private val LightSurface = Color(0xFFF9F7F3)
+private val LightSurfaceVariant = Color(0xFFE8E4DE)
+private val LightOnSurface = Color(0xFF1C1B18)
+private val LightOnSurfaceVariant = Color(0xFF8A8580)
+private val LightOutline = Color(0xFFC9C4BE)
 
 private val DarkBackground = Color(0xFF121212)
 private val DarkSurface = Color(0xFF1C1C1E)
@@ -47,10 +47,10 @@ private fun createLightColorScheme(
         onPrimary = Color(0xFFFFFFFF),
         primaryContainer = primaryContainer,
         onPrimaryContainer = onPrimaryContainer,
-        secondary = Color(0xFF8E8E93),
+        secondary = Color(0xFF8A8580),
         onSecondary = Color(0xFFFFFFFF),
-        secondaryContainer = Color(0xFFE5E5EA),
-        onSecondaryContainer = Color(0xFF1C1C1E),
+        secondaryContainer = Color(0xFFE8E4DE),
+        onSecondaryContainer = Color(0xFF1C1B18),
         tertiary = primary.copy(alpha = 0.8f),
         onTertiary = Color(0xFFFFFFFF),
         tertiaryContainer = primaryContainer.copy(alpha = 0.5f),

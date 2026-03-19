@@ -20,7 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -63,6 +62,8 @@ fun ExpandedControlPanel(
     val runMode by appSettings.runMode.collectAsStateWithLifecycle()
 
     val nodes by viewModel.chainState.chain.collectAsStateWithLifecycle()
+    val profiles by viewModel.chainState.profiles.collectAsStateWithLifecycle()
+    val activeProfileId by viewModel.chainState.activeProfileId.collectAsStateWithLifecycle()
     val selectedNode = nodes.find { it.id == uiState.selectedNodeId }
     val focusManager = LocalFocusManager.current
 
@@ -134,11 +135,13 @@ fun ExpandedControlPanel(
                                     selectedNodeId = uiState.selectedNodeId,
                                     isEditMode = uiState.isEditMode,
                                     isAddingTask = uiState.isAddingTask,
+                                    isProfileMode = uiState.isProfileMode,
                                     onNodeEnabledChange = viewModel::onNodeEnabledChange,
                                     onNodeSelected = viewModel::onNodeSelected,
                                     onNodeMove = viewModel::onNodeMove,
                                     onToggleEditMode = viewModel::onToggleEditMode,
                                     onToggleAddingTask = viewModel::onToggleAddingTask,
+                                    onToggleProfileMode = viewModel::onToggleProfileMode,
                                     modifier = Modifier
                                         .fillMaxHeight()
                                 )
@@ -148,6 +151,9 @@ fun ExpandedControlPanel(
                                     selectedNode = selectedNode,
                                     isEditMode = uiState.isEditMode,
                                     isAddingTask = uiState.isAddingTask,
+                                    isProfileMode = uiState.isProfileMode,
+                                    profiles = profiles,
+                                    activeProfileId = activeProfileId,
                                     onConfigChange = { config ->
                                         val nodeId = selectedNode?.id ?: return@TaskConfigPanel
                                         viewModel.onNodeConfigChange(nodeId, config)
@@ -155,6 +161,11 @@ fun ExpandedControlPanel(
                                     onAddNode = viewModel::onAddNode,
                                     onRemoveNode = viewModel::onRemoveNode,
                                     onRenameNode = viewModel::onRenameNode,
+                                    onSwitchProfile = viewModel::onSwitchProfile,
+                                    onRenameProfile = viewModel::onRenameProfile,
+                                    onDuplicateProfile = viewModel::onDuplicateProfile,
+                                    onDeleteProfile = viewModel::onDeleteProfile,
+                                    onCreateProfile = viewModel::onCreateProfile,
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxHeight()

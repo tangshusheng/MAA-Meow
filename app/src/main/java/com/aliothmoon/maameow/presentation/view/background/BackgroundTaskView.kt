@@ -13,6 +13,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.graphicsLayer
 
 import android.graphics.PixelFormat
+import android.os.Build
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -125,6 +126,8 @@ import androidx.compose.material.icons.filled.StayCurrentPortrait
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.ui.graphics.vector.ImageVector
 
+import androidx.compose.runtime.saveable.rememberSaveable
+
 @Composable
 fun BackgroundTaskView(
     onFullscreenChanged: (Boolean) -> Unit = {},
@@ -149,12 +152,24 @@ fun BackgroundTaskView(
     val touchMarkers by viewModel.touchMarkers.collectAsStateWithLifecycle()
     val displayResolution by compositionService.displayResolution.collectAsStateWithLifecycle()
     val showTouchPreview by appSettingsManager.showTouchPreview.collectAsStateWithLifecycle()
+
+    // --- 业务就绪状态：以 TaskChainState 实际加载完成为准 ---
+    val isChainLoaded by viewModel.chainState.isLoaded.collectAsStateWithLifecycle()
+    // 持久化已加载标志，确保跨 Tab 切换时实现瞬时显示，无需重复等待数据流
+    var hasInitialized by rememberSaveable { mutableStateOf(false) }
+    if (isChainLoaded) {
+        hasInitialized = true
+    }
+    val isInitialized = hasInitialized
+
     var isRequestingRemoteAccess by remember { mutableStateOf(false) }
     var showCloseConfirm by remember { mutableStateOf(false) }
     var showMoreActions by remember { mutableStateOf(false) }
     var showHardwareScreenOffConfirm by remember { mutableStateOf(false) }
 
     val nodes by viewModel.chainState.chain.collectAsStateWithLifecycle()
+    val profiles by viewModel.chainState.profiles.collectAsStateWithLifecycle()
+    val activeProfileId by viewModel.chainState.activeProfileId.collectAsStateWithLifecycle()
     val selectedNode = nodes.find { it.id == state.selectedNodeId }
     val canShowTaskActions =
         state.currentTab == PanelTab.TASKS
@@ -311,6 +326,7 @@ fun BackgroundTaskView(
                 .padding(horizontal = 16.dp)
                 .padding(top = 8.dp, bottom = 8.dp)
         ) {
+            // --- 预览图区域：实时加载 ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -327,168 +343,185 @@ fun BackgroundTaskView(
                         previewContent()
                     }
                 } else {
-                    Spacer(
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    Spacer(modifier = Modifier.fillMaxSize())
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // --- 业务内容区域：阶梯加载 ---
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(7f)
             ) {
                 PanelHeader(
-                    selectedTab = state.currentTab, onTabSelected = { tab ->
-                        viewModel.onTabChange(tab)
-                    }, showActions = false
+                    selectedTab = state.currentTab,
+                    onTabSelected = { tab -> viewModel.onTabChange(tab) },
+                    showActions = false
                 )
 
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    userScrollEnabled = true,
-                    beyondViewportPageCount = PanelTab.entries.size - 1
-                ) { page ->
-                    when (page) {
-                        0 -> {
-                            Row(modifier = Modifier.fillMaxSize()) {
-                                TaskListPanel(
-                                    nodes = nodes,
-                                    selectedNodeId = state.selectedNodeId,
-                                    isEditMode = state.isEditMode,
-                                    isAddingTask = state.isAddingTask,
-                                    onNodeEnabledChange = { nodeId, enabled ->
-                                        viewModel.onNodeEnabledChange(nodeId, enabled)
-                                    },
-                                    onNodeSelected = { nodeId ->
-                                        viewModel.onNodeSelected(nodeId)
-                                    },
-                                    onNodeMove = { fromIndex, toIndex ->
-                                        viewModel.onNodeMove(fromIndex, toIndex)
-                                    },
-                                    onToggleEditMode = { viewModel.onToggleEditMode() },
-                                    onToggleAddingTask = { viewModel.onToggleAddingTask() },
-                                    modifier = Modifier.fillMaxHeight(),
-                                )
+                androidx.compose.animation.Crossfade(
+                    targetState = isInitialized,
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    animationSpec = tween(300),
+                    label = "ContentCrossfade"
+                ) { initialized ->
+                    if (initialized) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            HorizontalPager(
+                                state = pagerState,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                userScrollEnabled = true,
+                                beyondViewportPageCount = 1
+                            ) { page ->
+                                when (page) {
+                                    0 -> {
+                                        Row(modifier = Modifier.fillMaxSize()) {
+                                            TaskListPanel(
+                                                nodes = nodes,
+                                                selectedNodeId = state.selectedNodeId,
+                                                isEditMode = state.isEditMode,
+                                                isAddingTask = state.isAddingTask,
+                                                isProfileMode = state.isProfileMode,
+                                                onNodeEnabledChange = { nodeId, enabled ->
+                                                    viewModel.onNodeEnabledChange(nodeId, enabled)
+                                                },
+                                                onNodeSelected = { nodeId ->
+                                                    viewModel.onNodeSelected(nodeId)
+                                                },
+                                                onNodeMove = { fromIndex, toIndex ->
+                                                    viewModel.onNodeMove(fromIndex, toIndex)
+                                                },
+                                                onToggleEditMode = { viewModel.onToggleEditMode() },
+                                                onToggleAddingTask = { viewModel.onToggleAddingTask() },
+                                                onToggleProfileMode = { viewModel.onToggleProfileMode() },
+                                                modifier = Modifier.fillMaxHeight(),
+                                            )
 
-                                Spacer(modifier = Modifier.width(8.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
 
-                                Card(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight(),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surface
-                                    )
-                                ) {
-                                    Column(modifier = Modifier.padding(top = 10.dp)) {
-                                        TaskConfigPanel(
-                                            selectedNode = selectedNode,
-                                            isEditMode = state.isEditMode,
-                                            isAddingTask = state.isAddingTask,
-                                            onConfigChange = { config ->
-                                                val nodeId =
-                                                    selectedNode?.id ?: return@TaskConfigPanel
-                                                viewModel.onNodeConfigChange(nodeId, config)
-                                            },
-                                            onAddNode = { viewModel.onAddNode(it) },
-                                            onRemoveNode = { viewModel.onRemoveNode(it) },
-                                            onRenameNode = { id, name ->
-                                                viewModel.onRenameNode(
-                                                    id,
-                                                    name
+                                            Card(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .fillMaxHeight(),
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = MaterialTheme.colorScheme.surface
                                                 )
+                                            ) {
+                                                Column(modifier = Modifier.padding(top = 10.dp)) {
+                                                    TaskConfigPanel(
+                                                        selectedNode = selectedNode,
+                                                        isEditMode = state.isEditMode,
+                                                        isAddingTask = state.isAddingTask,
+                                                        isProfileMode = state.isProfileMode,
+                                                        profiles = profiles,
+                                                        activeProfileId = activeProfileId,
+                                                        onConfigChange = { config ->
+                                                            val nodeId =
+                                                                selectedNode?.id ?: return@TaskConfigPanel
+                                                            viewModel.onNodeConfigChange(nodeId, config)
+                                                        },
+                                                        onAddNode = { viewModel.onAddNode(it) },
+                                                        onRemoveNode = { viewModel.onRemoveNode(it) },
+                                                        onRenameNode = { id, name ->
+                                                            viewModel.onRenameNode(
+                                                                id,
+                                                                name
+                                                            )
+                                                        },
+                                                        onSwitchProfile = { viewModel.onSwitchProfile(it) },
+                                                        onRenameProfile = { id, name -> viewModel.onRenameProfile(id, name) },
+                                                        onDuplicateProfile = { viewModel.onDuplicateProfile(it) },
+                                                        onDeleteProfile = { viewModel.onDeleteProfile(it) },
+                                                        onCreateProfile = { viewModel.onCreateProfile() }
+                                                    )
+                                                }
                                             }
+                                        }
+                                    }
+
+                                    1 -> AutoBattlePanel(modifier = Modifier.fillMaxSize())
+                                    2 -> MiniGamePanel(modifier = Modifier.fillMaxSize())
+                                    3 -> {
+                                        val runtimeLogs by viewModel.runtimeLogs.collectAsStateWithLifecycle()
+                                        LogPanel(
+                                            logs = runtimeLogs,
+                                            onClearLogs = { viewModel.onClearLogs() },
+                                            onClose = { viewModel.onTabChange(PanelTab.TASKS) })
+                                    }
+                                }
+                            }
+
+                            if (canShowTaskActions) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                val focusManager = LocalFocusManager.current
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            focusManager.clearFocus()
+                                            when (state.currentTab) {
+                                                PanelTab.TASKS -> viewModel.onStartTasks()
+                                                PanelTab.AUTO_BATTLE -> copilotViewModel.onStart()
+                                                PanelTab.TOOLS -> miniGameViewModel.onStart()
+                                                else -> {}
+                                            }
+                                        },
+                                        enabled = maaState != MaaExecutionState.RUNNING && maaState != MaaExecutionState.STARTING,
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        if (maaState == MaaExecutionState.STARTING) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(20.dp),
+                                                color = MaterialTheme.colorScheme.onPrimary,
+                                                strokeWidth = 2.dp
+                                            )
+                                        } else {
+                                            Text("开始任务")
+                                        }
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = {
+                                            when (state.currentTab) {
+                                                PanelTab.TASKS -> viewModel.onStopTasks()
+                                                PanelTab.AUTO_BATTLE -> copilotViewModel.onStop()
+                                                PanelTab.TOOLS -> miniGameViewModel.onStop()
+                                                else -> {}
+                                            }
+                                        },
+                                        enabled = maaState == MaaExecutionState.RUNNING,
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            contentColor = MaterialTheme.colorScheme.error
+                                        )
+                                    ) {
+                                        Text("停止任务")
+                                    }
+
+                                    IconButton(
+                                        onClick = { showMoreActions = !showMoreActions },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.MoreVert, contentDescription = "更多操作"
                                         )
                                     }
                                 }
                             }
                         }
-
-                        1 -> {
-                            AutoBattlePanel(modifier = Modifier.fillMaxSize())
-                        }
-
-                        2 -> {
-                            MiniGamePanel(modifier = Modifier.fillMaxSize())
-                        }
-
-                        3 -> {
-                            val runtimeLogs by viewModel.runtimeLogs.collectAsStateWithLifecycle()
-                            LogPanel(
-                                logs = runtimeLogs,
-                                onClearLogs = { viewModel.onClearLogs() },
-                                onClose = { viewModel.onTabChange(PanelTab.TASKS) })
-                        }
-                    }
-                }
-
-                if (canShowTaskActions) {
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    val focusManager = LocalFocusManager.current
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Button(
-                            onClick = {
-                                focusManager.clearFocus()
-                                when (state.currentTab) {
-                                    PanelTab.TASKS -> viewModel.onStartTasks()
-                                    PanelTab.AUTO_BATTLE -> copilotViewModel.onStart()
-                                    PanelTab.TOOLS -> miniGameViewModel.onStart()
-                                    else -> {}
-                                }
-                            },
-                            enabled = maaState != MaaExecutionState.RUNNING && maaState != MaaExecutionState.STARTING,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            if (maaState == MaaExecutionState.STARTING) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Text("开始任务")
-                            }
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                when (state.currentTab) {
-                                    PanelTab.TASKS -> viewModel.onStopTasks()
-                                    PanelTab.AUTO_BATTLE -> copilotViewModel.onStop()
-                                    PanelTab.TOOLS -> miniGameViewModel.onStop()
-                                    else -> {}
-                                }
-                            },
-                            enabled = maaState == MaaExecutionState.RUNNING,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Text("停止任务")
-                        }
-
-                        IconButton(
-                            onClick = { showMoreActions = !showMoreActions },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.MoreVert, contentDescription = "更多操作"
-                            )
+                    } else {
+                        // 初始化中的骨架占位
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 2.dp)
                         }
                     }
                 }

@@ -2,20 +2,22 @@ package com.aliothmoon.maameow.presentation.navigation
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,6 +35,13 @@ import com.aliothmoon.maameow.presentation.view.home.HomeView
 import com.aliothmoon.maameow.presentation.view.settings.ErrorLogView
 import com.aliothmoon.maameow.presentation.view.settings.LogHistoryView
 import com.aliothmoon.maameow.presentation.view.settings.SettingsView
+import com.aliothmoon.maameow.schedule.model.CountdownState
+import com.aliothmoon.maameow.schedule.service.ScheduleExecutionService
+import com.aliothmoon.maameow.schedule.ui.CountdownDialog
+import com.aliothmoon.maameow.schedule.ui.ScheduleEditView
+import com.aliothmoon.maameow.schedule.ui.ScheduleListView
+import com.aliothmoon.maameow.schedule.ui.sendCancelIntent
+import com.aliothmoon.maameow.schedule.ui.sendSkipCountdownIntent
 import org.koin.compose.koinInject
 
 @Composable
@@ -47,26 +56,31 @@ fun AppNavigation(
 
     var isFullscreen by remember { mutableStateOf(false) }
 
-    // Tab 切换状态 — 独立于 NavHost，避免 AnimatedContent 导致的重叠
-    var selectedTab by rememberSaveable { mutableStateOf(Routes.HOME) }
-
     // 执行模式状态 - 用于底部导航拦截
     val runMode by appSettings.runMode.collectAsStateWithLifecycle()
 
-    // 是否处于 push 页面（设置、日志等）
-    val isOnPushPage = currentNavRoute != null && currentNavRoute != Routes.HOME
+    // 定义哪些页面属于主 Tab
+    val mainTabs = listOf(Routes.HOME, Routes.BACKGROUND_TASK, Routes.SCHEDULE)
+    
+    // 判断是否处于主 Tab 页面
+    val isOnMainTab = currentNavRoute in mainTabs || currentNavRoute == null
 
     // 判断是否显示底部导航
-    val showBottomBar = !isFullscreen && !isOnPushPage
+    val showBottomBar = !isFullscreen && isOnMainTab
+
+    // 主 Tab 切换动画定义 - 使用极短的渐变色来平滑过渡，防止重叠感
+    val tabEnterTransition = fadeIn(animationSpec = tween(150))
+    val tabExitTransition = fadeOut(animationSpec = tween(150))
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             bottomBar = {
                 if (showBottomBar) {
                     AppBottomNavigation(
-                        currentRoute = selectedTab,
+                        currentRoute = currentNavRoute ?: Routes.HOME,
                         onTabSelected = { tab ->
-                            // 前台模式下，禁止切换到后台任务
+                            if (tab.route == currentNavRoute) return@AppBottomNavigation
+
                             if (tab.route == Routes.BACKGROUND_TASK && runMode == RunMode.FOREGROUND) {
                                 Toast.makeText(
                                     context,
@@ -75,7 +89,14 @@ fun AppNavigation(
                                 ).show()
                                 return@AppBottomNavigation
                             }
-                            selectedTab = tab.route
+
+                            navController.navigate(tab.route) {
+                                popUpTo(Routes.HOME) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     )
                 }
@@ -86,96 +107,55 @@ fun AppNavigation(
                     .fillMaxSize()
                     .padding(bottom = paddingValues.calculateBottomPadding())
             ) {
-                // NavHost 仅处理 HOME 页面 + push 导航（设置、日志等）
                 NavHost(
                     navController = navController,
                     startDestination = Routes.HOME,
                 ) {
                     composable(
                         route = Routes.HOME,
-                        enterTransition = {
-                            when (initialState.destination.route) {
-                                Routes.SETTINGS -> slideInHorizontally(
-                                    initialOffsetX = { -it },
-                                    animationSpec = tween(350)
-                                )
-
-                                else -> null
-                            }
-                        },
-                        exitTransition = {
-                            when (targetState.destination.route) {
-                                Routes.SETTINGS -> slideOutHorizontally(
-                                    targetOffsetX = { -it / 3 },
-                                    animationSpec = tween(350)
-                                )
-
-                                else -> null
-                            }
-                        },
-                        popEnterTransition = {
-                            when (initialState.destination.route) {
-                                Routes.SETTINGS -> slideInHorizontally(
-                                    initialOffsetX = { -it / 3 },
-                                    animationSpec = tween(350)
-                                )
-
-                                else -> null
-                            }
-                        },
-                        popExitTransition = {
-                            when (targetState.destination.route) {
-                                Routes.SETTINGS -> slideOutHorizontally(
-                                    targetOffsetX = { it },
-                                    animationSpec = tween(350)
-                                )
-
-                                else -> null
-                            }
-                        }
+                        enterTransition = { tabEnterTransition },
+                        exitTransition = { tabExitTransition },
+                        popEnterTransition = { tabEnterTransition },
+                        popExitTransition = { tabExitTransition }
                     ) {
                         HomeView(navController = navController)
                     }
 
                     composable(
+                        route = Routes.BACKGROUND_TASK,
+                        enterTransition = { tabEnterTransition },
+                        exitTransition = { tabExitTransition },
+                        popEnterTransition = { tabEnterTransition },
+                        popExitTransition = { tabExitTransition }
+                    ) {
+                        BackHandler { navController.navigate(Routes.HOME) }
+                        BackgroundTaskView(onFullscreenChanged = { isFullscreen = it })
+                    }
+
+                    composable(
+                        route = Routes.SCHEDULE,
+                        enterTransition = { tabEnterTransition },
+                        exitTransition = { tabExitTransition },
+                        popEnterTransition = { tabEnterTransition },
+                        popExitTransition = { tabExitTransition }
+                    ) {
+                        BackHandler { navController.navigate(Routes.HOME) }
+                        ScheduleListView(navController = navController)
+                    }
+
+                    composable(
                         route = Routes.SETTINGS,
                         enterTransition = {
-                            slideInHorizontally(
-                                initialOffsetX = { it },
-                                animationSpec = tween(350)
-                            )
+                            slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(350))
                         },
                         exitTransition = {
-                            when (targetState.destination.route) {
-                                Routes.HOME -> slideOutHorizontally(
-                                    targetOffsetX = { it },
-                                    animationSpec = tween(350)
-                                )
-
-                                Routes.LOG_HISTORY -> slideOutHorizontally(
-                                    targetOffsetX = { -it / 3 },
-                                    animationSpec = tween(350)
-                                )
-
-                                Routes.ERROR_LOG -> slideOutHorizontally(
-                                    targetOffsetX = { -it / 3 },
-                                    animationSpec = tween(350)
-                                )
-
-                                else -> null
-                            }
+                            slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(350))
                         },
                         popEnterTransition = {
-                            slideInHorizontally(
-                                initialOffsetX = { -it / 3 },
-                                animationSpec = tween(350)
-                            )
+                            slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(350))
                         },
                         popExitTransition = {
-                            slideOutHorizontally(
-                                targetOffsetX = { it },
-                                animationSpec = tween(350)
-                            )
+                            slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(350))
                         }
                     ) {
                         SettingsView(navController = navController)
@@ -184,28 +164,7 @@ fun AppNavigation(
                     composable(
                         route = Routes.LOG_HISTORY,
                         enterTransition = {
-                            slideInHorizontally(
-                                initialOffsetX = { it },
-                                animationSpec = tween(350)
-                            )
-                        },
-                        exitTransition = {
-                            slideOutHorizontally(
-                                targetOffsetX = { it },
-                                animationSpec = tween(350)
-                            )
-                        },
-                        popEnterTransition = {
-                            slideInHorizontally(
-                                initialOffsetX = { it },
-                                animationSpec = tween(350)
-                            )
-                        },
-                        popExitTransition = {
-                            slideOutHorizontally(
-                                targetOffsetX = { it },
-                                animationSpec = tween(350)
-                            )
+                            slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(350))
                         }
                     ) {
                         LogHistoryView(navController = navController)
@@ -214,49 +173,46 @@ fun AppNavigation(
                     composable(
                         route = Routes.ERROR_LOG,
                         enterTransition = {
-                            slideInHorizontally(
-                                initialOffsetX = { it },
-                                animationSpec = tween(350)
-                            )
-                        },
-                        exitTransition = {
-                            slideOutHorizontally(
-                                targetOffsetX = { it },
-                                animationSpec = tween(350)
-                            )
-                        },
-                        popEnterTransition = {
-                            slideInHorizontally(
-                                initialOffsetX = { it },
-                                animationSpec = tween(350)
-                            )
-                        },
-                        popExitTransition = {
-                            slideOutHorizontally(
-                                targetOffsetX = { it },
-                                animationSpec = tween(350)
-                            )
+                            slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(350))
                         }
                     ) {
                         ErrorLogView(navController = navController)
                     }
-                }
 
-                // 后台任务页 — 独立于 NavHost，直接覆盖在上层，
-                // 避免 AnimatedContent 导致的 SurfaceView 闪影和重叠问题
-                if (selectedTab == Routes.BACKGROUND_TASK && !isOnPushPage) {
-                    BackHandler { selectedTab = Routes.HOME }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.background)
-                    ) {
-                        BackgroundTaskView(onFullscreenChanged = { isFullscreen = it })
+                    composable(
+                        route = Routes.SCHEDULE_EDIT,
+                        enterTransition = {
+                            slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(350))
+                        },
+                        exitTransition = {
+                            slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(350))
+                        },
+                        popEnterTransition = {
+                            slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(350))
+                        },
+                        popExitTransition = {
+                            slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(350))
+                        }
+                    ) { backStackEntry ->
+                        val strategyId = backStackEntry.arguments?.getString("strategyId")
+                            .let { if (it == "new") null else it }
+                        ScheduleEditView(navController = navController, strategyId = strategyId)
                     }
                 }
             }
         }
 
         ResourceLoadingOverlay()
+
+        // 全局定时任务倒计时弹窗
+        val countdownState by ScheduleExecutionService.countdownState.collectAsState()
+        val countdown = countdownState
+        if (countdown is CountdownState.Counting) {
+            CountdownDialog(
+                state = countdown,
+                onCancel = { sendCancelIntent(context) },
+                onStartNow = { sendSkipCountdownIntent(context) }
+            )
+        }
     }
 }

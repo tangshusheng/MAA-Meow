@@ -1,6 +1,7 @@
 package com.aliothmoon.maameow.domain.usecase
 
 import com.aliothmoon.maameow.data.model.MallConfig
+import com.aliothmoon.maameow.data.model.TaskChainNode
 import com.aliothmoon.maameow.data.model.WakeUpConfig
 import com.aliothmoon.maameow.data.preferences.TaskChainState
 import com.aliothmoon.maameow.domain.models.resolveMallCreditFightAvailability
@@ -9,11 +10,15 @@ import timber.log.Timber
 
 class BuildTaskParamsUseCase(private val chainState: TaskChainState) {
     operator fun invoke(): List<MaaTaskParams> {
-        val enabledNodes = chainState.chain.value
+        return buildFrom(chainState.chain.value)
+    }
+
+    fun buildFrom(chain: List<TaskChainNode>): List<MaaTaskParams> {
+        val enabledNodes = chain
             .filter { it.enabled }
             .sortedBy { it.order }
         val creditFightAvailability = resolveMallCreditFightAvailability(enabledNodes)
-        val clientType = chainState.getClientType()
+        val clientType = enabledNodes.firstNotNullOfOrNull { (it.config as? WakeUpConfig)?.clientType } ?: "Official"
 
         if (!creditFightAvailability.isAvailable && enabledNodes.any { (it.config as? MallConfig)?.creditFight == true }) {
             Timber.w(
