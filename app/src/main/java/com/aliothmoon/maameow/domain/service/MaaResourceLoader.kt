@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 import java.io.File
 
@@ -50,15 +51,15 @@ class MaaResourceLoader(
 
         return try {
             withContext(Dispatchers.IO) {
-                useRemoteService { remote ->
-                    remote.setup(pathConfig.rootDir, appSettings.debugMode.value)
+                useRemoteService { srv ->
+                    srv.setup(pathConfig.rootDir, appSettings.debugMode.value)
 
                     if (appSettings.debugMode.value) {
                         val appPid = Process.myPid()
-                        val servicePid = remote.pid()
+                        val servicePid = srv.pid()
                         CoroutineScope(Dispatchers.IO).async {
-                            LogcatServiceManager.bind()
                             runCatching {
+                                LogcatServiceManager.bind()
                                 LogcatServiceManager.startCapture(
                                     appPid,
                                     servicePid,
@@ -68,7 +69,7 @@ class MaaResourceLoader(
                         }
                     }
 
-                    val maa = remote.maaCoreService
+                    val maa = srv.maaCoreService
                     val isGlobal = clientType !in listOf("", "Official", "Bilibili")
 
                     copyTasksJson(pathConfig.cacheResourceDir)
@@ -105,13 +106,15 @@ class MaaResourceLoader(
     }
 
     private suspend fun loadDepsInfo(clientType: String) {
-        withContext(Dispatchers.IO) {
-            listOf(
-                async { resourceDataManager.load(clientType) },
-                async { itemHelper.load() },
-                async { activityManager.load(clientType) }
-            )
-        }.awaitAll()
+        withTimeout(30_000) {
+            withContext(Dispatchers.IO) {
+                listOf(
+                    async { resourceDataManager.load(clientType) },
+                    async { itemHelper.load() },
+                    async { activityManager.load(clientType) }
+                )
+            }.awaitAll()
+        }
     }
 
     private fun loadResIfExists(maa: MaaCoreService, parentDir: String): Boolean {
