@@ -21,8 +21,6 @@ data class RecruitConfig(
 
     /**
      * 最大招募次数
-     * 对应 WPF: RecruitMaxTimes
-     * 范围: >= 0 (0表示不限制)
      */
     val maxRecruitTimes: Int = 4,
 

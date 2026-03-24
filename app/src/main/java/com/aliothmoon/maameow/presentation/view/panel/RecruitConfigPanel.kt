@@ -237,7 +237,7 @@ private fun RecruitMaxTimesSection(
         )
 
         Text(
-            text = "单次任务最多进行的公招次数（0表示不限制）",
+            text = "单次任务最多进行的公招次数",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
