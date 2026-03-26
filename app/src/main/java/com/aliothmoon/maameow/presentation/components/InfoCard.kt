@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.aliothmoon.maameow.theme.MaaDesignTokens
 
 @Composable
@@ -20,6 +21,7 @@ fun InfoCard(
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surface,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    contentPadding: Dp = MaaDesignTokens.Card.innerPadding,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
@@ -33,7 +35,7 @@ fun InfoCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(MaaDesignTokens.Card.innerPadding)
+                .padding(contentPadding)
         ) {
             if (title.isNotEmpty()) {
                 Text(

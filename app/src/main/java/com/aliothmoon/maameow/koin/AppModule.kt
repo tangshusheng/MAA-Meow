@@ -47,9 +47,14 @@ import com.aliothmoon.maameow.overlay.screensaver.ScreenSaverOverlayManager
 import com.aliothmoon.maameow.data.notification.NotificationSettingsManager
 import com.aliothmoon.maameow.data.notification.provider.BarkProvider
 import com.aliothmoon.maameow.data.notification.provider.CustomWebhookProvider
+import com.aliothmoon.maameow.data.notification.provider.DiscordProvider
+import com.aliothmoon.maameow.data.notification.provider.DiscordWebhookProvider
 import com.aliothmoon.maameow.data.notification.provider.DingTalkProvider
+import com.aliothmoon.maameow.data.notification.provider.GotifyProvider
 import com.aliothmoon.maameow.data.notification.provider.NotificationProvider
+import com.aliothmoon.maameow.data.notification.provider.QmsgProvider
 import com.aliothmoon.maameow.data.notification.provider.ServerChanProvider
+import com.aliothmoon.maameow.data.notification.provider.SmtpProvider
 import com.aliothmoon.maameow.data.notification.provider.TelegramProvider
 import com.aliothmoon.maameow.domain.service.ExternalNotificationService
 import com.aliothmoon.maameow.utils.CrashHandler
@@ -103,9 +108,14 @@ val appModule = module {
     // 外部通知
     singleOf(::NotificationSettingsManager)
     single<NotificationProvider> { ServerChanProvider(get(), get()) }
-    single<NotificationProvider> { BarkProvider(get(), get()) }
     single<NotificationProvider> { TelegramProvider(get(), get()) }
+    single<NotificationProvider> { DiscordProvider(get(), get()) }
     single<NotificationProvider> { DingTalkProvider(get(), get()) }
+    single<NotificationProvider> { DiscordWebhookProvider(get(), get()) }
+    single<NotificationProvider> { SmtpProvider(get()) }
+    single<NotificationProvider> { BarkProvider(get(), get()) }
+    single<NotificationProvider> { QmsgProvider(get(), get()) }
+    single<NotificationProvider> { GotifyProvider(get(), get()) }
     single<NotificationProvider> { CustomWebhookProvider(get(), get()) }
     single { ExternalNotificationService(get(), get(), getAll()) }
 

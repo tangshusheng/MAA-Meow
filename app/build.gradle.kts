@@ -119,6 +119,12 @@ android {
         jniLibs {
             useLegacyPackaging = true
         }
+        resources {
+            pickFirsts += setOf(
+                "META-INF/LICENSE.md",
+                "META-INF/NOTICE.md"
+            )
+        }
     }
 }
 
@@ -165,6 +171,9 @@ dependencies {
     implementation(libs.floatingx)
     implementation(libs.timber)
     implementation(libs.okhttp)
+    implementation(libs.angus.mail)
+    implementation(libs.angus.activation)
+    implementation(libs.jakarta.activation.api)
     implementation(libs.reorderable)
     implementation(libs.compose.markdown)
 
