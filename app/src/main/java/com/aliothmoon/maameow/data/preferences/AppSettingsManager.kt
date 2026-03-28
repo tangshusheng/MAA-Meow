@@ -164,7 +164,7 @@ class AppSettingsManager(private val context: Context) {
         }
     }
 
-    // 远程服务启动模式
+    // IPC服务启动模式
     val startupBackend: StateFlow<RemoteBackend> = settings
         .map {
             runCatching { RemoteBackend.valueOf(it.startupBackend) }

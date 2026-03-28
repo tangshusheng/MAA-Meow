@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.outlined.Delete
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.aliothmoon.maameow.presentation.components.TopAppBar
+import com.aliothmoon.maameow.constant.Routes
 import com.aliothmoon.maameow.schedule.model.ExecutionResult
 import com.aliothmoon.maameow.schedule.service.AutoStartHelper
 import com.aliothmoon.maameow.schedule.model.ScheduleStrategy
@@ -78,7 +80,17 @@ fun ScheduleListView(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = "定时任务")
+            TopAppBar(
+                title = "定时任务",
+                actions = {
+                    IconButton(onClick = { navController.navigate(Routes.SCHEDULE_TRIGGER_LOG) }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.List,
+                            contentDescription = "触发日志"
+                        )
+                    }
+                }
+            )
         },
         floatingActionButton = {
             FloatingActionButton(

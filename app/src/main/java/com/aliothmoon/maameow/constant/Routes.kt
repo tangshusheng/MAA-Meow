@@ -8,5 +8,6 @@ object Routes {
     const val BACKGROUND_TASK = "background_task"
     const val SCHEDULE = "schedule"
     const val SCHEDULE_EDIT = "schedule_edit/{strategyId}"
+    const val SCHEDULE_TRIGGER_LOG = "schedule_trigger_log"
     const val NOTIFICATION = "notification"
 }

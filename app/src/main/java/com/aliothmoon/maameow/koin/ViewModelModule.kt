@@ -12,6 +12,7 @@ import com.aliothmoon.maameow.presentation.viewmodel.NotificationSettingsViewMod
 import com.aliothmoon.maameow.presentation.viewmodel.UpdateViewModel
 import com.aliothmoon.maameow.schedule.ui.ScheduleEditViewModel
 import com.aliothmoon.maameow.schedule.ui.ScheduleListViewModel
+import com.aliothmoon.maameow.schedule.ui.ScheduleTriggerLogViewModel
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -26,6 +27,7 @@ val viewModelModule = module {
     viewModelOf(::BackgroundTaskViewModel)
     viewModelOf(::ScheduleListViewModel)
     viewModelOf(::ScheduleEditViewModel)
+    viewModelOf(::ScheduleTriggerLogViewModel)
     viewModelOf(::NotificationSettingsViewModel)
 }
 

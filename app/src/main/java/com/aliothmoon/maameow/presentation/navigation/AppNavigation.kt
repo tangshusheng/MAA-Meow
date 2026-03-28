@@ -41,6 +41,7 @@ import com.aliothmoon.maameow.schedule.model.CountdownState
 import com.aliothmoon.maameow.schedule.ui.CountdownDialog
 import com.aliothmoon.maameow.schedule.ui.ScheduleEditView
 import com.aliothmoon.maameow.schedule.ui.ScheduleListView
+import com.aliothmoon.maameow.schedule.ui.ScheduleTriggerLogView
 import org.koin.compose.koinInject
 
 @Composable
@@ -256,6 +257,24 @@ fun AppNavigation(
                         val strategyId = backStackEntry.arguments?.getString("strategyId")
                             .let { if (it == "new") null else it }
                         ScheduleEditView(navController = navController, strategyId = strategyId)
+                    }
+
+                    composable(
+                        route = Routes.SCHEDULE_TRIGGER_LOG,
+                        enterTransition = {
+                            slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(350))
+                        },
+                        exitTransition = {
+                            slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(350))
+                        },
+                        popEnterTransition = {
+                            slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(350))
+                        },
+                        popExitTransition = {
+                            slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(350))
+                        }
+                    ) {
+                        ScheduleTriggerLogView(navController = navController)
                     }
                 }
             }

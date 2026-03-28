@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 import com.aliothmoon.maameow.schedule.data.ScheduleStrategyRepository
 import com.aliothmoon.maameow.schedule.model.ScheduledExecutionRequest
 import com.aliothmoon.maameow.schedule.service.ScheduledLaunchCoordinator
+import com.aliothmoon.maameow.schedule.service.ScheduleTriggerLogger
 import kotlinx.coroutines.flow.drop
 import timber.log.Timber
 import java.util.concurrent.atomic.AtomicReference
@@ -40,6 +41,7 @@ class BackgroundTaskViewModel(
     private val sessionLogger: MaaSessionLogger,
     private val appSettingsManager: AppSettingsManager,
     scheduleRepository: ScheduleStrategyRepository,
+    triggerLogger: ScheduleTriggerLogger,
 ) : ViewModel() {
 
     val coordinator = ScheduledLaunchCoordinator(
@@ -48,6 +50,7 @@ class BackgroundTaskViewModel(
         compositionService = compositionService,
         appSettingsManager = appSettingsManager,
         chainState = chainState,
+        triggerLogger = triggerLogger,
     )
 
     private val _state = MutableStateFlow(BackgroundTaskState())
@@ -451,7 +454,7 @@ class BackgroundTaskViewModel(
                     "显示模式设置失败，请重试"
 
                 MaaCompositionService.StartResult.ConnectionError.ConnectPhase.VIRTUAL_DISPLAY ->
-                    "虚拟屏幕启动失败，请检查远程服务权限"
+                    "虚拟屏幕启动失败，请检查服务权限"
 
                 MaaCompositionService.StartResult.ConnectionError.ConnectPhase.MAA_CONNECT ->
                     "连接 MaaCore 超时，请重试"

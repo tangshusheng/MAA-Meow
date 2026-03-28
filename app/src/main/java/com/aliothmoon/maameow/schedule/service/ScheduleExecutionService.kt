@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.android.ext.android.inject
 import timber.log.Timber
+import com.aliothmoon.maameow.schedule.service.ScheduleTriggerLogger
 
 class ScheduleExecutionService : Service() {
 
@@ -41,6 +42,7 @@ class ScheduleExecutionService : Service() {
 
     private val repository: ScheduleStrategyRepository by inject()
     private val alarmManager: ScheduleAlarmManager by inject()
+    private val triggerLogger: ScheduleTriggerLogger by inject()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -77,12 +79,19 @@ class ScheduleExecutionService : Service() {
         ensureNotificationChannel()
         startAsForeground(buildPreparingNotification())
 
+        triggerLogger.append("调度触发，等待策略数据加载...")
         val strategy = awaitStrategy(strategyId)
         if (strategy == null) {
             Timber.w("$TAG: 策略不存在或配置未加载完成: %s", strategyId)
+            triggerLogger.append("策略不存在或数据未加载完成，放弃执行")
+            triggerLogger.end(ExecutionResult.FAILED_VALIDATION, "策略不存在")
             shutdownService()
             return
         }
+
+        // 策略加载成功，开启正式的触发日志
+        triggerLogger.begin(strategy.id, strategy.name, scheduledTimeMs)
+        triggerLogger.append("策略加载完成: ${strategy.name}")
 
         val request = ScheduledExecutionRequest(
             strategyId = strategy.id,
@@ -91,9 +100,12 @@ class ScheduleExecutionService : Service() {
             scheduledTimeMs = scheduledTimeMs,
         )
 
+        triggerLogger.append("检查锁屏状态...")
         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
         if (keyguardManager.isKeyguardLocked) {
             Timber.i("$TAG: 设备锁屏中，跳过本次定时执行: %s", strategy.name)
+            triggerLogger.append("设备锁屏，跳过本次执行")
+            triggerLogger.end(ExecutionResult.SKIPPED_LOCKED, "设备处于锁屏状态")
             repository.recordExecutionResult(
                 strategyId = strategy.id,
                 result = ExecutionResult.SKIPPED_LOCKED,
@@ -104,6 +116,8 @@ class ScheduleExecutionService : Service() {
             shutdownService()
             return
         }
+        triggerLogger.append("设备未锁屏，连接服务...")
+
         val ctx = this
         val launched = withTimeoutOrNull(10_000L) {
             runCatching {
@@ -111,16 +125,20 @@ class ScheduleExecutionService : Service() {
                     it.startActivity(request.toLaunchIntent(ctx))
                 }
             }.getOrElse { error ->
-                Timber.w(error, "$TAG: 拉起界面前连接远程服务失败")
+                Timber.w(error, "$TAG: 拉起界面前连接服务失败")
+                triggerLogger.append("连接服务失败: ${error.message}")
                 false
             }
         } ?: false
 
         if (!launched) {
+            triggerLogger.append("未能拉起界面")
+            triggerLogger.end(ExecutionResult.FAILED_UI_LAUNCH, "未能拉起界面")
             recordUiLaunchFailure(strategy, "未能拉起界面", scheduledTimeMs)
             return
         }
 
+        triggerLogger.append("服务连接成功，App待启动")
         alarmManager.scheduleNext(strategy, scheduledTimeMs)
         Timber.i("$TAG: 已将定时请求交给 UI: %s", request.requestId)
         shutdownService()

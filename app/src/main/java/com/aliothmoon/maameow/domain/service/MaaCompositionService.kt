@@ -140,7 +140,7 @@ class MaaCompositionService(
                     LogLevel.ERROR
                 )
                 if (notificationSettings.sendOnServiceDied.value) {
-                    notificationService.send("服务异常", "MAA 远程服务意外终止")
+                    notificationService.send("服务异常", "MAA 服务意外终止")
                 }
             }
         }

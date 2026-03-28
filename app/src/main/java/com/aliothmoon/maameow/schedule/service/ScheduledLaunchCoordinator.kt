@@ -30,6 +30,7 @@ class ScheduledLaunchCoordinator(
     private val compositionService: MaaCompositionService,
     private val appSettingsManager: AppSettingsManager,
     private val chainState: TaskChainState,
+    private val triggerLogger: ScheduleTriggerLogger,
 ) {
     private val _countdownState = MutableStateFlow<CountdownState>(CountdownState.Idle)
     val countdownState: StateFlow<CountdownState> = _countdownState.asStateFlow()
@@ -53,6 +54,7 @@ class ScheduledLaunchCoordinator(
         val request = activeRequest ?: return
         if (_countdownState.value !is CountdownState.Counting) return
         lastHandledRequestId = request.requestId
+        triggerLogger.append("用户取消了定时任务执行")
         scope.launch {
             finishFlow(request, ExecutionResult.CANCELLED, "用户取消了定时任务执行")
         }
@@ -61,6 +63,7 @@ class ScheduledLaunchCoordinator(
     fun onStartNow() {
         val request = activeRequest ?: return
         if (_countdownState.value !is CountdownState.Counting) return
+        triggerLogger.append("用户点击立即执行")
         promote(request)
     }
 
@@ -75,10 +78,13 @@ class ScheduledLaunchCoordinator(
         scope.launch {
             startingRequestId = requestId
             _pendingExecution.value = null
+            triggerLogger.append("页面就绪，开始执行任务")
             val message = execute(request)
             if (message == null) {
+                triggerLogger.append("任务启动成功")
                 finishFlow(request, ExecutionResult.STARTED)
             } else {
+                triggerLogger.append("任务启动失败: $message")
                 finishFlow(request, ExecutionResult.FAILED_START, message)
             }
         }
@@ -92,6 +98,8 @@ class ScheduledLaunchCoordinator(
 
     private suspend fun handleLaunch(request: ScheduledExecutionRequest) {
         if (isDuplicate(request)) return
+
+        triggerLogger.append("收到启动请求: ${request.strategyName}")
 
         if (hasPendingFlow()) {
             reject(request, ExecutionResult.SKIPPED_BUSY, "已有定时任务正在处理中")
@@ -110,8 +118,10 @@ class ScheduledLaunchCoordinator(
             return
         }
 
+        triggerLogger.append("等待任务配置加载...")
         chainState.isLoaded.filter { it }.first()
         if (chainState.activeProfileId.value != request.profileId) {
+            triggerLogger.append("切换任务配置: ${request.profileId}")
             chainState.switchProfile(request.profileId)
         }
         if (chainState.activeProfileId.value != request.profileId) {
@@ -125,6 +135,7 @@ class ScheduledLaunchCoordinator(
             return
         }
 
+        triggerLogger.append("前置条件通过，启用任务 ${enabledNodes.size} 项")
         lastHandledRequestId = request.requestId
         activeRequest = request
         startCountdown(request)
@@ -146,6 +157,7 @@ class ScheduledLaunchCoordinator(
 
     private fun startCountdown(request: ScheduledExecutionRequest) {
         cancelCountdown()
+        triggerLogger.append("开始倒计时 (${ScheduledExecutionRequest.COUNTDOWN_SECONDS}s)")
         countdownJob = scope.launch {
             for (remaining in ScheduledExecutionRequest.COUNTDOWN_SECONDS downTo 1) {
                 if (activeRequest?.requestId != request.requestId) return@launch
@@ -158,6 +170,7 @@ class ScheduledLaunchCoordinator(
                 delay(1000)
             }
             if (activeRequest?.requestId == request.requestId) {
+                triggerLogger.append("倒计时结束，提交执行")
                 promote(request)
             }
         }
@@ -176,6 +189,8 @@ class ScheduledLaunchCoordinator(
         message: String,
     ) {
         lastHandledRequestId = request.requestId
+        triggerLogger.append("跳过: $message")
+        triggerLogger.end(result, message)
         scheduleRepository.recordExecutionResult(
             strategyId = request.strategyId,
             result = result,
@@ -190,6 +205,7 @@ class ScheduledLaunchCoordinator(
         message: String? = null,
     ) {
         try {
+            triggerLogger.end(result, message)
             scheduleRepository.recordExecutionResult(
                 strategyId = request.strategyId,
                 result = result,
