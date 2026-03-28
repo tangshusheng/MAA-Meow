@@ -19,6 +19,7 @@ import com.aliothmoon.maameow.maa.MaaInstanceOptions.TOUCH_MODE
 import com.aliothmoon.maameow.maa.callback.MaaCallbackDispatcher
 import com.aliothmoon.maameow.maa.callback.MaaExecutionStateHolder
 import com.aliothmoon.maameow.maa.callback.SubTaskHandler
+import com.aliothmoon.maameow.maa.callback.TaskChainStatusTracker
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.manager.RemoteServiceManager.useRemoteService
 import com.aliothmoon.maameow.utils.Misc
@@ -48,6 +49,7 @@ class MaaCompositionService(
     private val appWatchdog: AppWatchdog,
     private val taskChainState: TaskChainState,
     private val subTaskHandler: SubTaskHandler,
+    private val taskChainStatusTracker: TaskChainStatusTracker,
     private val notificationService: ExternalNotificationService,
     private val notificationSettings: NotificationSettingsManager,
 ) : MaaExecutionStateHolder {
@@ -292,9 +294,13 @@ class MaaCompositionService(
         tasks: List<MaaTaskParams>,
         successMessage: String,
     ): StartResult {
+        taskChainStatusTracker.clear()
         tasks.forEach { t ->
             sessionLogger.appendToFileOnly("[TaskParams] ${t.type.value}: ${t.params}")
-            maa.AppendTask(t.type.value, t.params)
+            val taskId = maa.AppendTask(t.type.value, t.params)
+            if (taskId > 0) {
+                taskChainStatusTracker.register(taskId, t.type.value)
+            }
         }
         if (!maa.Start()) {
             return failStart("MaaCore 启动失败", "START_ERROR", StartResult.StartError)

@@ -13,10 +13,12 @@ import timber.log.Timber
 class TaskChainHandler(
     applicationContext: Context,
     private val sessionLogger: MaaSessionLogger,
-    private val copilotRuntimeStateStore: CopilotRuntimeStateStore
-)  {
+    private val copilotRuntimeStateStore: CopilotRuntimeStateStore,
+    private val statusTracker: TaskChainStatusTracker
+) {
     private val resources = applicationContext.resources
     private val packageName = applicationContext.packageName
+
     /**
      * 处理 TaskChain 回调消息
      *
@@ -24,13 +26,35 @@ class TaskChainHandler(
      * @param details 回调详情 JSON
      */
     fun handle(msg: AsstMsg, details: JSONObject) {
+        val taskId = details.getIntValue("taskid", 0)
         when (msg) {
-            AsstMsg.TaskChainError -> handleTaskChainError(details)
-            AsstMsg.TaskChainStart -> handleTaskChainStart(details)
-            AsstMsg.TaskChainCompleted -> handleTaskChainCompleted(details)
+            AsstMsg.TaskChainStart -> {
+                statusTracker.updateStatus(taskId, TaskRunStatus.IN_PROGRESS)
+                handleTaskChainStart(details)
+            }
+
+            AsstMsg.TaskChainCompleted -> {
+                statusTracker.updateStatus(taskId, TaskRunStatus.COMPLETED)
+                handleTaskChainCompleted(details)
+            }
+
+            AsstMsg.TaskChainError -> {
+                statusTracker.updateStatus(taskId, TaskRunStatus.ERROR)
+                handleTaskChainError(details)
+            }
+
             AsstMsg.TaskChainExtraInfo -> handleTaskChainExtraInfo(details)
-            AsstMsg.TaskChainStopped -> handleTaskChainStopped(details)
-            AsstMsg.AllTasksCompleted -> handleAllTasksCompleted()
+
+            AsstMsg.TaskChainStopped -> {
+                statusTracker.clear()
+                handleTaskChainStopped(details)
+            }
+
+            AsstMsg.AllTasksCompleted -> {
+                statusTracker.clear()
+                handleAllTasksCompleted()
+            }
+
             else -> Timber.w("TaskChainHandler received unexpected msg: $msg")
         }
     }
@@ -60,7 +84,6 @@ class TaskChainHandler(
         val taskchain = details.getString("taskchain") ?: "Unknown"
         val taskName = str(taskchain)
         sessionLogger.append("${str("CompleteTask")}$taskName", LogLevel.SUCCESS)
-        // TODO 实现 Fight 任务的理智消耗
     }
 
     /**
@@ -69,10 +92,6 @@ class TaskChainHandler(
     private fun handleTaskChainExtraInfo(details: JSONObject) {
         val what = details.getString("what")
         when (what) {
-            "StageDrops-Stars-3", "StageDrops-Stars-Adverse" -> {
-                copilotRuntimeStateStore.markTaskSuccess()
-                sessionLogger.append(str("CompleteCombat"), LogLevel.INFO)
-            }
             "RoutingRestart" -> {
                 val why = details.getString("why")
                 if (why == "TooManyBattlesAhead") {
@@ -85,6 +104,7 @@ class TaskChainHandler(
                     Timber.d("TaskChainExtraInfo RoutingRestart with unhandled why=$why")
                 }
             }
+
             else -> {
                 Timber.d("TaskChainExtraInfo unhandled what=$what, details=$details")
             }
@@ -95,16 +115,13 @@ class TaskChainHandler(
      * TaskChainStopped (10004): 任务链停止（用户手动停止）
      */
     private fun handleTaskChainStopped(details: JSONObject) {
-        val taskchain = details.getString("taskchain") ?: "Unknown"
-        val taskName = str(taskchain)
-        sessionLogger.append("${str("CompleteTask")}$taskName", LogLevel.INFO)
+        sessionLogger.append(str("TaskStopped"), LogLevel.INFO)
     }
 
     /**
      * AllTasksCompleted (3): 所有任务完成
      */
     private fun handleAllTasksCompleted() {
-        // TODO 计算耗时，处理 SanityReport
         sessionLogger.append(str("AllTasksComplete", ""), LogLevel.SUCCESS)
     }
 

@@ -19,6 +19,7 @@
     <string name="maa_combat_error">战斗出错</string>
     <string name="maa_start_task">开始任务: </string>
     <string name="maa_complete_task">完成任务: </string>
+    <string name="maa_task_stopped">任务已停止</string>
     <string name="maa_all_tasks_complete">任务已全部完成！</string>
     <string name="maa_routing_restart_too_many_battles">前方战斗数：%1$s，重开路线</string>
     <string name="maa_ends_with_script">结束后脚本</string>
