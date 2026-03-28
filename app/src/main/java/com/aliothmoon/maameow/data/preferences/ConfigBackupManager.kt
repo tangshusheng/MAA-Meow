@@ -1,7 +1,12 @@
 package com.aliothmoon.maameow.data.preferences
 
+import com.aliothmoon.maameow.data.model.InfrastConfig
+import com.aliothmoon.maameow.data.model.TaskChainNode
+import com.aliothmoon.maameow.data.model.TaskProfile
 import com.aliothmoon.maameow.data.notification.NotificationSettings
 import com.aliothmoon.maameow.data.notification.NotificationSettingsManager
+import com.aliothmoon.maameow.domain.enums.InfrastMode
+import com.aliothmoon.maameow.domain.enums.UiUsageConstants
 import com.aliothmoon.maameow.domain.models.AppSettings
 import com.aliothmoon.maameow.schedule.data.ScheduleStrategyRepository
 import com.aliothmoon.maameow.schedule.service.ScheduleAlarmManager
@@ -36,7 +41,7 @@ class ConfigBackupManager(
             exportedAt = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
             appSettings = appSettingsManager.settings.first().sanitized(),
             notificationSettings = notificationSettingsManager.settings.first().sanitized(),
-            taskProfiles = taskChainState.profiles.value,
+            taskProfiles = taskChainState.profiles.value.map { it.sanitized() },
             activeProfileId = taskChainState.activeProfileId.value,
             scheduleStrategies = scheduleStrategyRepository.strategies.value,
         )
@@ -71,6 +76,24 @@ class ConfigBackupManager(
         const val CURRENT_VERSION = 1
 
         private fun AppSettings.sanitized() = copy(mirrorChyanCdk = "")
+
+        /**
+         * 导出时将使用自定义文件的基建配置回退为常规模式，
+         * 因为自定义文件路径在其他设备上不存在。
+         */
+        private fun TaskProfile.sanitized() = copy(
+            chain = chain.map { node ->
+                val cfg = node.config
+                if (cfg is InfrastConfig
+                    && cfg.mode == InfrastMode.Custom
+                    && cfg.defaultInfrast == UiUsageConstants.USER_DEFINED_INFRAST
+                ) {
+                    node.copy(config = InfrastConfig())
+                } else {
+                    node
+                }
+            }
+        )
 
         private fun NotificationSettings.sanitized() = copy(
             serverChanSendKey = "",

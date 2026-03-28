@@ -1,5 +1,6 @@
 package com.aliothmoon.maameow.presentation.view.panel
 
+import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -34,6 +35,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -72,9 +77,7 @@ import java.time.format.DateTimeFormatter
  */
 @Composable
 fun InfrastConfigPanel(
-    config: InfrastConfig,
-    onConfigChange: (InfrastConfig) -> Unit,
-    modifier: Modifier = Modifier
+    config: InfrastConfig, onConfigChange: (InfrastConfig) -> Unit, modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
@@ -83,9 +86,7 @@ fun InfrastConfigPanel(
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         val pagerState = rememberPagerState(
-            initialPage = 0,
-            pageCount = { 2 }
-        )
+            initialPage = 0, pageCount = { 2 })
         val coroutineScope = rememberCoroutineScope()
 
         // Tab 行
@@ -103,8 +104,7 @@ fun InfrastConfigPanel(
                     coroutineScope.launch {
                         pagerState.animateScrollToPage(0)
                     }
-                }
-            )
+                })
             Text(
                 text = "高级设置",
                 style = MaterialTheme.typography.bodyMedium,
@@ -114,14 +114,12 @@ fun InfrastConfigPanel(
                     coroutineScope.launch {
                         pagerState.animateScrollToPage(1)
                     }
-                }
-            )
+                })
         }
 
         HorizontalDivider(
             modifier = Modifier.padding(
-                top = 4.dp,
-                bottom = 8.dp
+                top = 4.dp, bottom = 8.dp
             )
         )
 
@@ -135,8 +133,7 @@ fun InfrastConfigPanel(
             userScrollEnabled = true
         ) { page ->
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
+                verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize()
             ) {
                 when (page) {
                     // 常规设置 Tab
@@ -235,13 +232,11 @@ fun InfrastConfigPanel(
  */
 @Composable
 private fun InfrastModeSection(
-    config: InfrastConfig,
-    onConfigChange: (InfrastConfig) -> Unit
+    config: InfrastConfig, onConfigChange: (InfrastConfig) -> Unit
 ) {
     // 模式选项 (对应WPF的InfrastModeList)
     val modeOptions = listOf(
-        "Normal" to "常规模式",
-        "Rotation" to "轮换模式"
+        "Normal" to "常规模式", "Rotation" to "轮换模式"
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -266,8 +261,7 @@ private fun InfrastModeSection(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = it.displayName,
-                        style = MaterialTheme.typography.bodyMedium
+                        text = it.displayName, style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
@@ -304,10 +298,35 @@ private fun InfrastModeSection(
  */
 @Composable
 private fun CustomInfrastSection(
-    config: InfrastConfig,
-    onConfigChange: (InfrastConfig) -> Unit
+    config: InfrastConfig, onConfigChange: (InfrastConfig) -> Unit
 ) {
     val pathConfig: MaaPathConfig = koinInject()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // SAF 文件选择器
+    val filePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri ?: return@rememberLauncherForActivityResult
+        scope.launch {
+            withContext(Dispatchers.IO) {
+                val destDir = File(pathConfig.rootDir, "custom_infrast").apply { mkdirs() }
+                val fileName = queryFileName(context, uri) ?: "user_infrast.json"
+                val destFile = File(destDir, fileName)
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    destFile.outputStream().use { output -> input.copyTo(output) }
+                }
+                onConfigChange(
+                    config.copy(
+                        defaultInfrast = UiUsageConstants.USER_DEFINED_INFRAST,
+                        customInfrastFile = destFile.absolutePath,
+                        customInfrastPlanSelect = -1
+                    )
+                )
+            }
+        }
+    }
 
     // 解析后的配置（用于计划下拉框）
     val (custom, setCustom) = remember { mutableStateOf<CustomInfrastConfig?>(null) }
@@ -325,8 +344,7 @@ private fun CustomInfrastSection(
                 val file = File(config.customInfrastFile)
                 if (file.exists()) {
                     val content = file.readText()
-                    val parsed = JsonUtils.common
-                        .decodeFromString<CustomInfrastConfig>(content)
+                    val parsed = JsonUtils.common.decodeFromString<CustomInfrastConfig>(content)
                     setCustom(parsed)
                     setParseError(null)
                     // 同步时间段数据到 config 用于 toTaskParams 的时间轮换
@@ -353,11 +371,9 @@ private fun CustomInfrastSection(
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ),
-                    modifier = Modifier.clickable(
+                    ), modifier = Modifier.clickable(
                         enabled = !custom.description.isNullOrBlank()
-                    ) { descExpanded = !descExpanded }
-                ) {
+                    ) { descExpanded = !descExpanded }) {
                     Column(
                         modifier = Modifier.padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -376,8 +392,7 @@ private fun CustomInfrastSection(
                                 if (!custom.description.isNullOrBlank()) {
                                     ExpandableTipIcon(
                                         expanded = descExpanded,
-                                        onExpandedChange = { descExpanded = it }
-                                    )
+                                        onExpandedChange = { descExpanded = it })
                                 }
                             }
                         }
@@ -402,39 +417,26 @@ private fun CustomInfrastSection(
                 selectedPlanIndex = config.customInfrastPlanSelect,
                 onPlanSelected = {
                     onConfigChange(config.copy(customInfrastPlanSelect = it))
-                }
-            )
+                })
         }
 
         // 在线生成器链接
         val context = LocalContext.current
         Text(
-            text = "自定义基建排班制作器",
-            style = MaterialTheme.typography.bodySmall.copy(
+            text = "自定义基建排班制作器", style = MaterialTheme.typography.bodySmall.copy(
                 textDecoration = TextDecoration.Underline
-            ),
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.clickable {
+            ), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable {
                 Misc.openUriSafely(context, MaaApi.BASE_SCHEDULING_SCHEMA)
-            }
-        )
+            })
 
         // 内置配置选择
         PresetButtonGroup(
-            selectedPreset = config.defaultInfrast,
-            onPresetSelected = { preset ->
+            selectedPreset = config.defaultInfrast, onPresetSelected = { preset ->
                 if (preset == UiUsageConstants.USER_DEFINED_INFRAST) {
-                    onConfigChange(
-                        config.copy(
-                            defaultInfrast = preset,
-                            customInfrastFile = "",
-                            customInfrastPlanSelect = -1
-                        )
-                    )
+                    filePicker.launch(arrayOf("application/json"))
                 } else {
                     val filePath = File(
-                        pathConfig.resourceDir,
-                        "custom_infrast/$preset"
+                        pathConfig.resourceDir, "custom_infrast/$preset"
                     ).absolutePath
                     onConfigChange(
                         config.copy(
@@ -444,8 +446,7 @@ private fun CustomInfrastSection(
                         )
                     )
                 }
-            }
-        )
+            })
 
         //  解析错误提示
         if (parseError != null) {
@@ -463,8 +464,7 @@ private fun CustomInfrastSection(
  */
 @Composable
 private fun PresetButtonGroup(
-    selectedPreset: String,
-    onPresetSelected: (String) -> Unit
+    selectedPreset: String, onPresetSelected: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
@@ -476,8 +476,7 @@ private fun PresetButtonGroup(
         UiUsageConstants.defaultInfrastPresets.forEach { (key, label) ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { onPresetSelected(key) }
-            ) {
+                modifier = Modifier.clickable { onPresetSelected(key) }) {
                 RadioButton(
                     selected = selectedPreset == key,
                     onClick = { onPresetSelected(key) },
@@ -485,8 +484,7 @@ private fun PresetButtonGroup(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyMedium
+                    text = label, style = MaterialTheme.typography.bodyMedium
                 )
             }
         }
@@ -498,9 +496,7 @@ private fun PresetButtonGroup(
  */
 @Composable
 private fun PlanSelectButtonGroup(
-    plans: List<CustomInfrastConfig.Plan>,
-    selectedPlanIndex: Int,
-    onPlanSelected: (Int) -> Unit
+    plans: List<CustomInfrastConfig.Plan>, selectedPlanIndex: Int, onPlanSelected: (Int) -> Unit
 ) {
     val hasPeriodicPlan = plans.any { it.period.isNotEmpty() }
     val hasNonPeriodicPlan = plans.any { it.period.isEmpty() }
@@ -513,9 +509,8 @@ private fun PlanSelectButtonGroup(
         val matched = plans.firstOrNull { plan ->
             plan.period.any { range ->
                 if (range.size < 2) return@any false
-                val start =
-                    runCatching { LocalTime.parse(range[0], formatter) }.getOrNull()
-                        ?: return@any false
+                val start = runCatching { LocalTime.parse(range[0], formatter) }.getOrNull()
+                    ?: return@any false
                 val end = runCatching { LocalTime.parse(range[1], formatter) }.getOrNull()
                     ?: return@any false
                 if (start <= end) now in start..end
@@ -538,24 +533,20 @@ private fun PlanSelectButtonGroup(
                 fontWeight = FontWeight.Medium
             )
             ExpandableTipIcon(
-                expanded = tipExpanded,
-                onExpandedChange = { tipExpanded = it }
-            )
+                expanded = tipExpanded, onExpandedChange = { tipExpanded = it })
         }
 
         val tip =
             "如「基建计划」存在执行时间，「基建换班」任务开始前或任务运行时不会自动切换，将保持Link Start!时的状态，仅在空闲或任务完成后切换"
         ExpandableTipContent(
-            visible = tipExpanded,
-            tipText = tip
+            visible = tipExpanded, tipText = tip
         )
 
         // 时间轮换项（仅当存在带 period 的计划时显示）
         if (hasPeriodicPlan) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { onPlanSelected(-1) }
-            ) {
+                modifier = Modifier.clickable { onPlanSelected(-1) }) {
                 RadioButton(
                     selected = selectedPlanIndex == -1,
                     onClick = { onPlanSelected(-1) },
@@ -583,8 +574,7 @@ private fun PlanSelectButtonGroup(
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { onPlanSelected(index) }
-            ) {
+                modifier = Modifier.clickable { onPlanSelected(index) }) {
                 RadioButton(
                     selected = selectedPlanIndex == index,
                     onClick = { onPlanSelected(index) },
@@ -592,8 +582,7 @@ private fun PlanSelectButtonGroup(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyMedium
+                    text = label, style = MaterialTheme.typography.bodyMedium
                 )
             }
         }
@@ -627,8 +616,7 @@ private fun PlanSelectButtonGroup(
  */
 @Composable
 private fun UsesOfDronesSection(
-    config: InfrastConfig,
-    onConfigChange: (InfrastConfig) -> Unit
+    config: InfrastConfig, onConfigChange: (InfrastConfig) -> Unit
 ) {
 
 
@@ -649,8 +637,7 @@ private fun UsesOfDronesSection(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .widthIn(min = 80.dp)
-                        .clickable { onConfigChange(config.copy(usesOfDrones = value)) }
-                ) {
+                        .clickable { onConfigChange(config.copy(usesOfDrones = value)) }) {
                     RadioButton(
                         selected = config.usesOfDrones == value,
                         onClick = { onConfigChange(config.copy(usesOfDrones = value)) },
@@ -658,8 +645,7 @@ private fun UsesOfDronesSection(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = label,
-                        style = MaterialTheme.typography.bodyMedium
+                        text = label, style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
@@ -672,8 +658,7 @@ private fun UsesOfDronesSection(
  */
 @Composable
 private fun DormThresholdSection(
-    config: InfrastConfig,
-    onConfigChange: (InfrastConfig) -> Unit
+    config: InfrastConfig, onConfigChange: (InfrastConfig) -> Unit
 ) {
     var tipExpanded by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -692,9 +677,7 @@ private fun DormThresholdSection(
                     fontWeight = FontWeight.Medium
                 )
                 ExpandableTipIcon(
-                    expanded = tipExpanded,
-                    onExpandedChange = { tipExpanded = it }
-                )
+                    expanded = tipExpanded, onExpandedChange = { tipExpanded = it })
             }
             Text(
                 text = "${config.dormThreshold}%",
@@ -723,8 +706,7 @@ private fun DormThresholdSection(
  */
 @Composable
 private fun FacilitiesSection(
-    config: InfrastConfig,
-    onConfigChange: (InfrastConfig) -> Unit
+    config: InfrastConfig, onConfigChange: (InfrastConfig) -> Unit
 ) {
 
     var tipExpanded by remember { mutableStateOf(false) }
@@ -740,36 +722,28 @@ private fun FacilitiesSection(
                 fontWeight = FontWeight.Medium
             )
             ExpandableTipIcon(
-                expanded = tipExpanded,
-                onExpandedChange = { tipExpanded = it }
-            )
+                expanded = tipExpanded, onExpandedChange = { tipExpanded = it })
         }
 
         ExpandableTipContent(
-            visible = tipExpanded,
-            tipText = "勾选需要换班的设施\n设施顺序代表换班优先级"
+            visible = tipExpanded, tipText = "勾选需要换班的设施\n设施顺序代表换班优先级"
         )
 
         // 设施列表（支持拖拽排序 + 勾选）
         FacilityList(
             facilities = config.facilities,
-            onFacilitiesChange = { onConfigChange(config.copy(facilities = it)) }
-        )
+            onFacilitiesChange = { onConfigChange(config.copy(facilities = it)) })
 
         // 全选/清除按钮
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
                 onClick = {
                     onConfigChange(
                         config.copy(
-                            facilities = config.facilities.map { it.first to true }
-                        )
-                    )
-                },
-                modifier = Modifier.weight(1f)
+                        facilities = config.facilities.map { it.first to true }))
+                }, modifier = Modifier.weight(1f)
             ) {
                 Text("全选")
             }
@@ -778,11 +752,8 @@ private fun FacilitiesSection(
                 onClick = {
                     onConfigChange(
                         config.copy(
-                            facilities = config.facilities.map { it.first to false }
-                        )
-                    )
-                },
-                modifier = Modifier.weight(1f)
+                        facilities = config.facilities.map { it.first to false }))
+                }, modifier = Modifier.weight(1f)
             ) {
                 Text("清除")
             }
@@ -809,46 +780,38 @@ private fun FacilityList(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         ReorderableColumn(
-            list = facilities,
-            onSettle = { fromIndex, toIndex ->
+            list = facilities, onSettle = { fromIndex, toIndex ->
                 val newList = facilities.toMutableList().apply {
                     add(toIndex, removeAt(fromIndex))
                 }
                 onFacilitiesChange(newList)
-            },
-            modifier = Modifier.padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            }, modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)
         ) { _, entry, _ ->
             key(entry.first) {
                 ReorderableItem {
                     val (facility, enabled) = entry
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .longPressDraggableHandle()
-                            .clickable {
-                                val newList = facilities.map {
-                                    if (it.first == facility) it.first to !it.second else it
-                                }
-                                onFacilitiesChange(newList)
+                    Row(modifier = Modifier
+                        .fillMaxWidth()
+                        .longPressDraggableHandle()
+                        .clickable {
+                            val newList = facilities.map {
+                                if (it.first == facility) it.first to !it.second else it
                             }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                            onFacilitiesChange(newList)
+                        }
+                        .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
-                            checked = enabled,
-                            onCheckedChange = { checked ->
+                            checked = enabled, onCheckedChange = { checked ->
                                 val newList = facilities.map {
                                     if (it.first == facility) it.first to checked else it
                                 }
                                 onFacilitiesChange(newList)
-                            },
-                            modifier = Modifier.size(20.dp)
+                            }, modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = facility.displayName,
-                            style = MaterialTheme.typography.bodyMedium
+                            text = facility.displayName, style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
@@ -862,12 +825,10 @@ private fun FacilityList(
  */
 @Composable
 private fun DormTrustEnabledSection(
-    config: InfrastConfig,
-    onConfigChange: (InfrastConfig) -> Unit
+    config: InfrastConfig, onConfigChange: (InfrastConfig) -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(
             checked = config.dormTrustEnabled,
@@ -876,8 +837,7 @@ private fun DormTrustEnabledSection(
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = "宿舍空余位置蹭信赖",
-            style = MaterialTheme.typography.bodyMedium
+            text = "宿舍空余位置蹭信赖", style = MaterialTheme.typography.bodyMedium
         )
     }
 }
@@ -887,14 +847,12 @@ private fun DormTrustEnabledSection(
  */
 @Composable
 private fun DormFilterNotStationedSection(
-    config: InfrastConfig,
-    onConfigChange: (InfrastConfig) -> Unit
+    config: InfrastConfig, onConfigChange: (InfrastConfig) -> Unit
 ) {
     var tipExpanded by remember { mutableStateOf(false) }
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.fillMaxWidth()
+        verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -906,13 +864,10 @@ private fun DormFilterNotStationedSection(
                 modifier = Modifier.size(20.dp)
             )
             Text(
-                text = "不将已进驻的干员放入宿舍",
-                style = MaterialTheme.typography.bodyMedium
+                text = "不将已进驻的干员放入宿舍", style = MaterialTheme.typography.bodyMedium
             )
             ExpandableTipIcon(
-                expanded = tipExpanded,
-                onExpandedChange = { tipExpanded = it }
-            )
+                expanded = tipExpanded, onExpandedChange = { tipExpanded = it })
         }
         ExpandableTipContent(
             visible = tipExpanded,
@@ -926,12 +881,10 @@ private fun DormFilterNotStationedSection(
  */
 @Composable
 private fun OriginiumShardAutoReplenishmentSection(
-    config: InfrastConfig,
-    onConfigChange: (InfrastConfig) -> Unit
+    config: InfrastConfig, onConfigChange: (InfrastConfig) -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
+        modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top
     ) {
         Checkbox(
             checked = config.originiumShardAutoReplenishment,
@@ -952,12 +905,10 @@ private fun OriginiumShardAutoReplenishmentSection(
  */
 @Composable
 private fun ReceptionMessageBoardReceiveSection(
-    config: InfrastConfig,
-    onConfigChange: (InfrastConfig) -> Unit
+    config: InfrastConfig, onConfigChange: (InfrastConfig) -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
+        modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top
     ) {
         Checkbox(
             checked = config.receptionMessageBoard,
@@ -978,12 +929,10 @@ private fun ReceptionMessageBoardReceiveSection(
  */
 @Composable
 private fun ReceptionClueExchangeSection(
-    config: InfrastConfig,
-    onConfigChange: (InfrastConfig) -> Unit
+    config: InfrastConfig, onConfigChange: (InfrastConfig) -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
+        modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top
     ) {
         Checkbox(
             checked = config.receptionClueExchange,
@@ -1004,12 +953,10 @@ private fun ReceptionClueExchangeSection(
  */
 @Composable
 private fun ReceptionSendClueSection(
-    config: InfrastConfig,
-    onConfigChange: (InfrastConfig) -> Unit
+    config: InfrastConfig, onConfigChange: (InfrastConfig) -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
+        modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top
     ) {
         Checkbox(
             checked = config.receptionSendClue,
@@ -1030,12 +977,10 @@ private fun ReceptionSendClueSection(
  */
 @Composable
 private fun ContinueTrainingSection(
-    config: InfrastConfig,
-    onConfigChange: (InfrastConfig) -> Unit
+    config: InfrastConfig, onConfigChange: (InfrastConfig) -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
+        modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top
     ) {
         Checkbox(
             checked = config.continueTraining,
@@ -1049,4 +994,13 @@ private fun ContinueTrainingSection(
             lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
         )
     }
+}
+
+private fun queryFileName(context: Context, uri: Uri): String? {
+    return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (idx >= 0) cursor.getString(idx) else null
+            } else null
+        }
 }

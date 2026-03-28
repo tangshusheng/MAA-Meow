@@ -17,7 +17,7 @@ object UiUsageConstants {
      * 对应 WPF: DefaultInfrastList
      */
     val defaultInfrastPresets = listOf(
-        USER_DEFINED_INFRAST to "自定义（暂不支持）",
+        USER_DEFINED_INFRAST to "自定义文件",
         "153_layout_3_times_a_day.json" to "153 一天 3 换",
         "153_layout_4_times_a_day.json" to "153 一天 4 换",
         "243_layout_3_times_a_day.json" to "243 一天 3 换",
