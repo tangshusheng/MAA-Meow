@@ -39,7 +39,7 @@ import timber.log.Timber
 import java.util.concurrent.atomic.AtomicReference
 
 class MaaCompositionService(
-    private val applicationContext: Context,
+    private val context: Context,
     private val resourceLoader: MaaResourceLoader,
     private val appSettings: AppSettingsManager,
     private val unifiedStateDispatcher: UnifiedStateDispatcher,
@@ -69,10 +69,11 @@ class MaaCompositionService(
     private fun setRunState(state: MaaExecutionState) {
         _state.value = state
         when (state) {
-            MaaExecutionState.STARTING -> TaskExecutionService.start(applicationContext)
-            MaaExecutionState.IDLE, MaaExecutionState.ERROR -> TaskExecutionService.stop(
-                applicationContext
-            )
+            MaaExecutionState.STARTING ->
+                TaskExecutionService.start(context)
+
+            MaaExecutionState.IDLE, MaaExecutionState.ERROR ->
+                TaskExecutionService.stop(context)
 
             else -> {}
         }
@@ -215,7 +216,7 @@ class MaaCompositionService(
             )
         }
         if (mode == RunMode.FOREGROUND) {
-            val (width, height) = Misc.getScreenSize(applicationContext)
+            val (width, height) = Misc.getScreenSize(context)
             if (height > width) {
                 return failStart(
                     "当前为竖屏，无法在前台模式运行", "PORTRAIT",
@@ -274,7 +275,7 @@ class MaaCompositionService(
             )
         val config = when (mode) {
             RunMode.FOREGROUND -> {
-                val (w, h) = Misc.getScreenSize(applicationContext)
+                val (w, h) = Misc.getScreenSize(context)
                 buildConnectConfig(w, h, displayId)
             }
 
