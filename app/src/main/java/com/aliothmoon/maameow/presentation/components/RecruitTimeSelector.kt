@@ -51,7 +51,7 @@ fun RecruitTimeSelector(
             enabled = enabled,
             modifier = Modifier
                 .width(60.dp)
-                .height(40.dp)
+                .height(56.dp)
         )
 
         Text(
@@ -77,7 +77,7 @@ fun RecruitTimeSelector(
             enabled = enabled,
             modifier = Modifier
                 .width(60.dp)
-                .height(40.dp)
+                .height(56.dp)
         )
     }
 }
