@@ -39,9 +39,9 @@ data class ScheduleEditUiState(
 )
 
 class ScheduleEditViewModel(
+    private val context: Context,
     private val repository: ScheduleStrategyRepository,
     private val taskChainState: TaskChainState,
-    private val context: Context,
     private val scheduleAlarmManager: ScheduleAlarmManager,
 ) : ViewModel() {
 
@@ -137,7 +137,8 @@ class ScheduleEditViewModel(
 
     fun onReplaceTime(old: LocalTime, new: LocalTime) {
         _state.update { state ->
-            val updated = state.executionTimes.map { if (it == old) new else it }.distinct().sorted()
+            val updated =
+                state.executionTimes.map { if (it == old) new else it }.distinct().sorted()
             state.copy(executionTimes = updated)
         }
     }

@@ -234,7 +234,33 @@ data class FightConfig(
      *
      * 默认值: true（WPF 第806行）
      */
-    val autoRestartOnDrop: Boolean = true
+    val autoRestartOnDrop: Boolean = true,
+
+    // ============ 高级设置 - 周计划 ============
+
+    /**
+     * 是否启用周计划
+     *
+     * 迁移自 WPF FightTask.UseWeeklySchedule
+     * 启用后仅在 weeklySchedule 中勾选的日期执行该任务
+     */
+    val useWeeklySchedule: Boolean = false,
+
+    /**
+     * 周计划配置
+     *
+     * 迁移自 WPF FightTask.WeeklySchedule
+     * key 为 DayOfWeek 枚举名（MONDAY~SUNDAY），value 为是否启用
+     */
+    val weeklySchedule: Map<String, Boolean> = mapOf(
+        "MONDAY" to true,
+        "TUESDAY" to true,
+        "WEDNESDAY" to true,
+        "THURSDAY" to true,
+        "FRIDAY" to true,
+        "SATURDAY" to true,
+        "SUNDAY" to true,
+    )
 ) : TaskParamProvider {
     /**
      * 获取实际使用的关卡

@@ -380,6 +380,24 @@ class BackgroundTaskViewModel(
         }
 
         val params = buildTaskParams()
+        if (params.isEmpty()) {
+            val msg = "当前没有可执行的任务（可能被周计划过滤）"
+            Timber.w(msg)
+            if (request != null) {
+                showStartFailedDialog(msg)
+            } else {
+                showDialog(
+                    PanelDialogUiState(
+                        type = PanelDialogType.WARNING,
+                        title = "提示",
+                        message = msg,
+                        confirmText = "知道了",
+                        confirmAction = PanelDialogConfirmAction.DISMISS_ONLY
+                    )
+                )
+            }
+            return msg
+        }
         val result = compositionService.start(params) {
             if (request != null) {
                 sessionLogger.appendAndWait(

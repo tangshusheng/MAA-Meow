@@ -3,9 +3,11 @@ package com.aliothmoon.maameow.presentation.view.panel.fight
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -287,6 +289,9 @@ fun FightConfigPanel(
                                 label = "游戏掉线时自动重连",
                                 tipText = "检测到游戏掉线时会自动尝试重连并继续作战"
                             )
+                        }
+                        item {
+                            WeeklyScheduleSection(config, onConfigChange)
                         }
                     }
                 }
@@ -763,5 +768,76 @@ private fun StageInputField(
                 { Text("将转换为: $convertedCode", color = MaterialTheme.colorScheme.primary) }
             } else null
         )
+    }
+}
+
+private val WEEK_DAYS = listOf(
+    "MONDAY" to "周一",
+    "TUESDAY" to "周二",
+    "WEDNESDAY" to "周三",
+    "THURSDAY" to "周四",
+    "FRIDAY" to "周五",
+    "SATURDAY" to "周六",
+    "SUNDAY" to "周日",
+)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun WeeklyScheduleSection(
+    config: FightConfig,
+    onConfigChange: (FightConfig) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        CheckBoxWithExpandableTip(
+            checked = config.useWeeklySchedule,
+            onCheckedChange = { onConfigChange(config.copy(useWeeklySchedule = it)) },
+            label = "启用周计划",
+            tipText = "启用后仅在勾选的日期执行该任务（使用游戏服务器时间，04:00 换日）"
+        )
+        AnimatedVisibility(
+            visible = config.useWeeklySchedule,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(start = 4.dp)
+            ) {
+                WEEK_DAYS.forEach { (key, display) ->
+                    val selected = config.weeklySchedule[key] != false
+                    Surface(
+                        onClick = {
+                            val updated = config.weeklySchedule.toMutableMap()
+                            updated[key] = !selected
+                            onConfigChange(config.copy(weeklySchedule = updated))
+                        },
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (selected)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = if (selected)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.outlineVariant
+                        )
+                    ) {
+                        Text(
+                            text = display,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (selected)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onSurface,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+            }
+        }
     }
 }

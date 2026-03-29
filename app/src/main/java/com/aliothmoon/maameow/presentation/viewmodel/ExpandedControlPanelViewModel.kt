@@ -239,6 +239,19 @@ class ExpandedControlPanelViewModel(
         }
 
         val taskParams = buildTaskParams()
+        if (taskParams.isEmpty()) {
+            Timber.w("All tasks filtered (e.g. by weekly schedule)")
+            showDialog(
+                PanelDialogUiState(
+                    type = PanelDialogType.WARNING,
+                    title = "提示",
+                    message = "当前没有可执行的任务（可能被周计划过滤）",
+                    confirmText = "知道了",
+                    confirmAction = PanelDialogConfirmAction.DISMISS_ONLY
+                )
+            )
+            return
+        }
 
         // 打印任务 JSON 列表
         Timber.i("=== Task JSON List (%d tasks) ===", taskParams.size)
