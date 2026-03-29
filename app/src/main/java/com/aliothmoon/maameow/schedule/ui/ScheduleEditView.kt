@@ -160,8 +160,8 @@ fun ScheduleEditView(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val chipColors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                     )
                     val allSelected = DayOfWeek.entries.all { it in state.daysOfWeek }
                     FilterChip(
@@ -255,8 +255,8 @@ fun ScheduleEditView(
                                 onClick = { viewModel.onSelectProfile(profile.id) },
                                 label = { Text(profile.name) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                                 )
                             )
                         }
@@ -279,6 +279,7 @@ fun ScheduleEditView(
 
             item {
                 SectionHeader("高级选项")
+                val (expanded, setExpanded) = remember { mutableStateOf(false) }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -286,27 +287,26 @@ fun ScheduleEditView(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val (expanded, setExpanded) = remember { mutableStateOf(false) }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("强制启动", style = MaterialTheme.typography.bodyLarge)
-                            ExpandableTipIcon(
-                                modifier = Modifier.padding(start = 8.dp),
-                                expanded = expanded,
-                                onExpandedChange = { setExpanded(it) })
-                        }
-                        ExpandableTipContent(
-                            visible = expanded,
-                            tipText = "强制启动任务，会中断的正在运行的游戏和任务"
-                        )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("强制启动", style = MaterialTheme.typography.bodyLarge)
+                        ExpandableTipIcon(
+                            modifier = Modifier.padding(start = 8.dp),
+                            expanded = expanded,
+                            onExpandedChange = { setExpanded(it) })
                     }
                     Switch(
                         checked = state.forceStart,
                         onCheckedChange = { viewModel.onForceStartChanged(it) }
                     )
                 }
+                ExpandableTipContent(
+                    visible = expanded,
+                    tipText = "强制启动任务，会中断正在运行的游戏和任务",
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
             }
         }
     }
