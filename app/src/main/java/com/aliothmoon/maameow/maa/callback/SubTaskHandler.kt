@@ -5,6 +5,7 @@ import com.alibaba.fastjson2.JSONObject
 import com.aliothmoon.maameow.data.model.LogItem
 import com.aliothmoon.maameow.data.model.LogLevel
 import com.aliothmoon.maameow.data.resource.ResourceDataManager
+import com.aliothmoon.maameow.domain.service.MaaEventNotifier
 import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 import com.aliothmoon.maameow.maa.AsstMsg
 import androidx.compose.ui.text.AnnotatedString
@@ -24,6 +25,7 @@ class SubTaskHandler(
     private val copilotRuntimeStateStore: CopilotRuntimeStateStore,
     private val resourceDataManager: ResourceDataManager,
     private val toolboxResultCollector: ToolboxResultCollector,
+    private val eventNotifier: MaaEventNotifier,
 ) {
     private val resources = applicationContext.resources
     private val packageName = applicationContext.packageName
@@ -183,7 +185,9 @@ class SubTaskHandler(
             }
 
             "FightMissionFailedAndStop" -> {
-                append(str("FightMissionFailedAndStop"), LogLevel.ERROR)
+                val message = str("FightMissionFailedAndStop")
+                append(message, LogLevel.ERROR)
+                eventNotifier.notifySubTaskFailure(message)
             }
 
             "RecruitRefreshConfirm" -> {
@@ -323,6 +327,7 @@ class SubTaskHandler(
                 toolboxResultCollector.onDepotResult(subDetails)
                 return
             }
+
             "OperBox" -> {
                 toolboxResultCollector.onOperBoxResult(subDetails)
                 return
@@ -404,11 +409,13 @@ class SubTaskHandler(
             "RecruitSpecialTag" -> {
                 val tag = subDetails?.getString("tag") ?: ""
                 append("${str("RecruitingTips")}\n$tag", LogLevel.RARE)
+                eventNotifier.notifyRecruitSpecialTag(tag)
             }
 
             "RecruitRobotTag" -> {
                 val tag = subDetails?.getString("tag") ?: ""
                 append("${str("RecruitingTips")}\n$tag", LogLevel.RECRUIT_ROBOT)
+                eventNotifier.notifyRecruitRobotTag(tag)
             }
 
             "RecruitResult" -> {
@@ -422,6 +429,9 @@ class SubTaskHandler(
                     )
                 )
                 toolboxResultCollector.onRecruitResult(subDetails)
+                if (level >= 5) {
+                    eventNotifier.notifyRecruitHighRarity(level)
+                }
             }
 
             "RecruitSupportOperator" -> {

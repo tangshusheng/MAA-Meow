@@ -1,6 +1,7 @@
 package com.aliothmoon.maameow.presentation.view.notification
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -9,27 +10,39 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.data.preferences.AppSettingsManager.EventNotificationLevel
+import com.aliothmoon.maameow.domain.service.MaaEventNotifier
 import com.aliothmoon.maameow.presentation.components.ITextField
 import com.aliothmoon.maameow.presentation.components.InfoCard
 import com.aliothmoon.maameow.presentation.components.TopAppBar
 import com.aliothmoon.maameow.presentation.viewmodel.NotificationSettingsViewModel
 import com.aliothmoon.maameow.theme.MaaDesignTokens
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 private val PROVIDERS = listOf(
     "ServerChan" to "Server酱",
@@ -55,9 +68,13 @@ fun NotificationSettingsView(
     val sendOnServiceDied by viewModel.sendOnServiceDied.collectAsStateWithLifecycle()
     val includeLogDetails by viewModel.includeLogDetails.collectAsStateWithLifecycle()
 
+    val appSettingsManager: AppSettingsManager = koinInject()
+    val eventNotificationLevel by appSettingsManager.eventNotificationLevel.collectAsStateWithLifecycle()
+    val coroutineScope = rememberCoroutineScope()
+
     Scaffold(
         topBar = {
-            TopAppBar(title = "外部通知")
+            TopAppBar(title = "通知设置")
         }
     ) { paddingValues ->
     val contentColor = MaterialTheme.colorScheme.onSurface
@@ -68,9 +85,57 @@ fun NotificationSettingsView(
             .padding(top = paddingValues.calculateTopPadding()),
         contentPadding = PaddingValues(MaaDesignTokens.Spacing.lg)
     ) {
-        // 触发条件
+        // 内部通知
         item {
-            SectionHeader("触发条件")
+            val isEnabled = eventNotificationLevel != EventNotificationLevel.OFF
+            SectionHeader("内部通知")
+            InfoCard(title = "") {
+                SwitchItem(
+                    title = "通知提醒",
+                    checked = isEnabled,
+                    contentColor = contentColor
+                ) { enabled ->
+                    coroutineScope.launch {
+                        appSettingsManager.setEventNotificationLevel(
+                            if (enabled) EventNotificationLevel.DEFAULT else EventNotificationLevel.OFF
+                        )
+                    }
+                }
+                AnimatedVisibility(visible = isEnabled) {
+                    Column {
+                        SettingsDivider(contentColor)
+                        SwitchItem(
+                            title = "弹出提示",
+                            checked = eventNotificationLevel == EventNotificationLevel.HIGH,
+                            contentColor = contentColor
+                        ) { popup ->
+                            coroutineScope.launch {
+                                appSettingsManager.setEventNotificationLevel(
+                                    if (popup) EventNotificationLevel.HIGH else EventNotificationLevel.DEFAULT
+                                )
+                            }
+                        }
+                        SettingsDivider(contentColor)
+                        val eventNotifier: MaaEventNotifier = koinInject()
+                        Button(
+                            onClick = { eventNotifier.notifyAllTasksCompleted("这是一条测试通知") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = MaaDesignTokens.Spacing.sm),
+                            shape = MaterialTheme.shapes.small,
+                            contentPadding = ButtonDefaults.ContentPadding
+                        ) {
+                            Text("发送测试通知")
+                        }
+                    }
+                }
+            }
+        }
+
+        // 外部通知 - 触发条件
+        item {
+            Spacer(Modifier.height(MaaDesignTokens.Spacing.sectionGap))
+            SectionHeader("外部通知")
             InfoCard(title = "") {
                 SwitchItem("任务完成时通知", sendOnComplete, contentColor) {
                     viewModel.updateSettings { copy(sendOnComplete = it.toString()) }

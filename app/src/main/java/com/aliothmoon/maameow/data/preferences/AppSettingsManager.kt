@@ -311,4 +311,29 @@ class AppSettingsManager(private val context: Context) {
         }
     }
 
+    // 内部通知级别
+    enum class EventNotificationLevel(val displayName: String) {
+        OFF("关闭"),
+        DEFAULT("静默"),
+        HIGH("弹出"),
+    }
+
+    val eventNotificationLevel: StateFlow<EventNotificationLevel> = settings
+        .map {
+            runCatching { EventNotificationLevel.valueOf(it.eventNotificationLevel) }
+                .getOrDefault(EventNotificationLevel.DEFAULT)
+        }
+        .distinctUntilChanged()
+        .stateIn(
+            scope, SharingStarted.Eagerly,
+            runCatching { EventNotificationLevel.valueOf(initialSettings.eventNotificationLevel) }
+                .getOrDefault(EventNotificationLevel.DEFAULT)
+        )
+
+    suspend fun setEventNotificationLevel(level: EventNotificationLevel) {
+        with(AppSettingsSchema) {
+            context.dataStore.edit { it[eventNotificationLevel] = level.name }
+        }
+    }
+
 }

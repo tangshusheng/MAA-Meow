@@ -36,4 +36,6 @@ data class AppSettings(
     @PrefKey(default = "false") val showTouchPreview: String = "false",
 
     @PrefKey(default = "WHITE") val themeMode: String = "WHITE",
+
+    @PrefKey(default = "DEFAULT") val eventNotificationLevel: String = "DEFAULT",
 )

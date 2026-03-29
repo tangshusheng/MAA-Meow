@@ -27,6 +27,7 @@ import com.aliothmoon.maameow.data.resource.ResourceDataManager
 import com.aliothmoon.maameow.domain.service.CopilotManager
 import com.aliothmoon.maameow.domain.service.LogExportService
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
+import com.aliothmoon.maameow.domain.service.MaaEventNotifier
 import com.aliothmoon.maameow.domain.service.MaaResourceLoader
 import com.aliothmoon.maameow.domain.service.AppWatchdog
 import com.aliothmoon.maameow.domain.service.ResourceInitService
@@ -123,6 +124,9 @@ val appModule = module {
     single<NotificationProvider> { GotifyProvider(get(), get()) }
     single<NotificationProvider> { CustomWebhookProvider(get(), get()) }
     single { ExternalNotificationService(get(), get(), getAll()) }
+
+    // 内部通知
+    singleOf(::MaaEventNotifier)
 
     // 回调处理链
     singleOf(::ConnectionInfoHandler)

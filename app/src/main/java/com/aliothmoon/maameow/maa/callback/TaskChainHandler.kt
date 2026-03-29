@@ -3,6 +3,7 @@ package com.aliothmoon.maameow.maa.callback
 import android.content.Context
 import com.alibaba.fastjson2.JSONObject
 import com.aliothmoon.maameow.data.model.LogLevel
+import com.aliothmoon.maameow.domain.service.MaaEventNotifier
 import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 import com.aliothmoon.maameow.maa.AsstMsg
 import timber.log.Timber
@@ -14,7 +15,8 @@ class TaskChainHandler(
     applicationContext: Context,
     private val sessionLogger: MaaSessionLogger,
     private val copilotRuntimeStateStore: CopilotRuntimeStateStore,
-    private val statusTracker: TaskChainStatusTracker
+    private val statusTracker: TaskChainStatusTracker,
+    private val eventNotifier: MaaEventNotifier,
 ) {
     private val resources = applicationContext.resources
     private val packageName = applicationContext.packageName
@@ -66,6 +68,7 @@ class TaskChainHandler(
         val taskchain = details.getString("taskchain") ?: "Unknown"
         val taskName = str(taskchain)
         sessionLogger.append("${str("TaskError")}$taskName", LogLevel.ERROR)
+        eventNotifier.notifyTaskError(taskName)
     }
 
     /**
@@ -123,6 +126,7 @@ class TaskChainHandler(
      */
     private fun handleAllTasksCompleted() {
         sessionLogger.append(str("AllTasksComplete", ""), LogLevel.SUCCESS)
+        eventNotifier.notifyAllTasksCompleted(str("AllTasksComplete", ""))
     }
 
     /**
